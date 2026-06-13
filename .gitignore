@@ -1,0 +1,59 @@
+# =========================
+# Caché y archivos de Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# =========================
+# Entornos virtuales
+# =========================
+.venv/
+venv/
+env/
+
+# =========================
+# Variables de entorno y secretos
+# No subir credenciales reales
+# =========================
+.env
+
+# =========================
+# Cachés de herramientas y testing
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+htmlcov/
+
+# =========================
+# Archivos de notebooks
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Configuración local de editores/IDEs
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Archivos del sistema operativo
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Artefactos generados por el proyecto
+# PDFs, gráficos y salida local
+# =========================
+output/
+*.pdf
+*.png
+
+# =========================
+# Archivos temporales de pruebas manuales
+# =========================
+test_numeric.csv

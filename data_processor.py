@@ -1,5 +1,5 @@
 import pandas as pd
-from config import DATA_FILE
+from config import DATA_FILE, CHART_OUTPUT_DIR
 
 
 def load_data(filepath: str = DATA_FILE) -> pd.DataFrame:
@@ -31,12 +31,17 @@ def generate_summary(df: pd.DataFrame) -> dict:
     return summary
 
 
-def generate_chart(df: pd.DataFrame, output_path: str = "output/chart.png") -> str | None:
+def generate_chart(df: pd.DataFrame, output_path: str = None) -> str | None:
     """Genera un gráfico de barras y lo guarda como imagen."""
     import matplotlib.pyplot as plt
     import os
 
-    os.makedirs("output", exist_ok=True)
+    if output_path is None:
+        output_path = os.path.join(CHART_OUTPUT_DIR, "chart.png")
+
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     numeric_cols = df.select_dtypes(include="number").columns
 
     if len(df.columns) < 2 or len(numeric_cols) == 0:

@@ -2,10 +2,11 @@ import argparse
 import schedule
 import time
 import logging
+from datetime import datetime
 from data_processor import load_data, generate_summary, generate_chart
 from pdf_generator import build_pdf
 from email_sender import send_report
-from config import DATA_FILE, SCHEDULE_TIME
+from config import DATA_FILE, SCHEDULE_TIME, SCHEDULE_FREQUENCY, CHART_OUTPUT_DIR
 
 # Configure structured logging
 logging.basicConfig(
@@ -53,7 +54,7 @@ def run_report():
 def main():
     parser = argparse.ArgumentParser(description="Report Automator")
     parser.add_argument("--run-now",  action="store_true", help="Ejecutar inmediatamente")
-    parser.add_argument("--schedule", choices=["daily", "weekly"], help="Programar ejecución")
+    parser.add_argument("--schedule", choices=["daily", "weekly", "monthly"], help="Programar ejecución")
     args = parser.parse_args()
 
     if args.run_now:
@@ -67,6 +68,17 @@ def main():
     elif args.schedule == "weekly":
         schedule.every().monday.at(SCHEDULE_TIME).do(run_report)
         logging.info(f"��⏰ Programado: todos los lunes a las {SCHEDULE_TIME}")
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
+    elif args.schedule == "monthly":
+        # Schedule for the first day of each month
+        # schedule library doesn't have native monthly, so we do daily and check date
+        def job():
+            if datetime.now().day == 1:
+                run_report()
+        schedule.every().day.at(SCHEDULE_TIME).do(job)
+        logging.info(f"��������������⏰ Programado: primer día de cada mes a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)

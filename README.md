@@ -255,9 +255,7 @@ Eso permitió endurecer el flujo sin convertir el proyecto en una solución sobr
 El proyecto es funcional, pero sigue siendo una solución liviana. Las principales limitaciones actuales son:
 
 - el envío de correo depende de credenciales SMTP válidas
-- la observabilidad actual es por consola, no mediante logging estructurado
 - la validación del scheduler se realizó en arranque y comportamiento esperado, pero la ejecución productiva a hora real debe comprobarse en el entorno final
-- no existen tests automatizados todavía
 - la configuración depende mayoritariamente de variables de entorno
 
 ## Qué demuestra este proyecto
@@ -274,12 +272,9 @@ Desde una perspectiva técnica, este repositorio demuestra:
 
 ## Posibles mejoras futuras
 
-- incorporar tests automatizados
-- agregar logging estructurado
 - ampliar la validación de configuración
 - mejorar la interfaz de línea de comandos
 - soportar otros proveedores o parámetros SMTP
-- añadir mayor flexibilidad en configuración de salida y scheduling
 
 ## Requisitos
 

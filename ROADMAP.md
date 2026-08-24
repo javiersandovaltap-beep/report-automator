@@ -16,53 +16,199 @@ portfolio project, and while practicing a disciplined Claude Code workflow.
 
 ## Phase 1 - Governance, state, and diagnosis
 
-Status: in progress
+Status: complete
 
-- [x] Create .claude/settings.json with allow/ask/deny permission rules.
-- [x] Create block-dangerous-commands.ps1 hook (PreToolUse).
-- [x] Create protect-project-files.ps1 hook (PreToolUse, protects AGENTS.md/CLAUDE.md).
-- [x] Create validate-after-edit.ps1 hook (PostToolUse, py_compile on Python edits).
-- [x] Validate all hooks functionally (dangerous command denied, safe command
-      allowed, protected files denied, Python syntax check passes).
-- [x] Commit enforcement layer (5dc67bb).
-- [x] Create quick-explorer, writer, quick-reviewer, architecture-reviewer,
-      and code-reviewer agent definitions.
-- [x] Update CLAUDE.md with session-start order, agent workflow, and priorities.
-- [x] Update AGENTS.md with architecture, agent workflow, and validation order.
-- [x] Create SESSION_STATE.md as the single source of truth for project state.
-- [x] Create this ROADMAP.md.
-- [ ] Run the baseline diagnosis (py_compile all modules, run pytest, run
-      ruff check) and record real results in SESSION_STATE.md.
-- [ ] Commit governance files (agents, CLAUDE.md, AGENTS.md, SESSION_STATE.md,
-      ROADMAP.md) as separate atomic commits.
+- [x] Create `.claude/settings.json` with allow/ask/deny permission rules.
+- [x] Create `block-dangerous-commands.ps1` hook (PreToolUse).
+- [x] Create `protect-project-files.ps1` hook (PreToolUse, protects
+      AGENTS.md and CLAUDE.md).
+- [x] Create `validate-after-edit.ps1` hook (PostToolUse, runs py_compile
+      on edited Python files).
+- [x] Validate all hooks functionally:
+      dangerous command denied, safe command allowed, protected files denied,
+      and Python syntax validation passed.
+- [x] Commit enforcement layer (`5dc67bb`).
+- [x] Create `quick-explorer`, `writer`, `quick-reviewer`,
+      `architecture-reviewer`, and `code-reviewer` agent definitions.
+- [x] Assign explicit models:
+      quick-explorer=haiku, writer=sonnet, quick-reviewer=haiku,
+      architecture-reviewer=opus, code-reviewer=sonnet.
+- [x] Update `CLAUDE.md` with session-start order, project priorities,
+      agent workflow, and enforcement rules.
+- [x] Update `AGENTS.md` with module boundaries, validation order,
+      protected information rules, and agent workflow.
+- [x] Create `SESSION_STATE.md` as the single source of truth for project state.
+- [x] Create `ROADMAP.md`.
+- [x] Run the baseline diagnosis:
+      all five application modules pass py_compile;
+      the existing pytest suite passes with 6 tests;
+      Ruff is not installed and has no project configuration.
+- [x] Commit agent definitions (`5fac46d`).
+- [x] Commit governance documentation (`75918f1`).
 
 Acceptance criteria:
-- Enforcement layer is active and tested.
-- All five agents exist with valid frontmatter (name, description, model, tools).
-- Reviewer agents cannot Edit or Write.
-- writer cannot commit or push.
-- CLAUDE.md and AGENTS.md reflect the actual agent workflow and priorities.
-- SESSION_STATE.md contains verified facts, not assumptions.
+
+- Enforcement layer is active and functionally tested.
+- All five agents have valid frontmatter with name, description, model, and tools.
+- Reviewer agents are read-only.
+- `writer` has no commit or push capability.
+- `CLAUDE.md` and `AGENTS.md` reflect the project workflow and priorities.
+- `SESSION_STATE.md` contains verified facts rather than assumptions.
 - No application code was changed during this phase.
 
 ## Phase 2 - Automated quality
 
-Status: pending
+Status: in progress
 
-- [ ] Confirm actual syntax integrity of all Python modules (py_compile).
-- [ ] Confirm existing pytest suite scope (know what data_processor tests cover).
-- [ ] Add missing tests: config loading, pdf_generator, email_sender (mocked
-      SMTP, no real network calls), and a full pipeline integration test.
-- [ ] Cover numeric and non-numeric datasets, empty datasets, missing files,
-      and invalid Excel/CSV input.
-- [ ] Add ruff configuration and run `ruff check .` cleanly.
-- [ ] Record final test and lint status in SESSION_STATE.md.
+### Baseline diagnosis
+
+- [x] Compile all application modules with `py_compile`.
+- [x] Confirm `main.py` compiles.
+- [x] Confirm `config.py` compiles.
+- [x] Confirm `data_processor.py` compiles.
+- [x] Confirm `pdf_generator.py` compiles.
+- [x] Confirm `email_sender.py` compiles.
+- [x] Confirm the existing pytest suite runs successfully.
+- [x] Confirm the baseline suite result: 6 passed, 0 failed, 0 skipped.
+- [x] Map the existing `data_processor.py` test coverage.
+- [x] Confirm there is no `tests/` directory.
+- [x] Confirm the existing test file is `test_data_processor.py` at repository root.
+- [x] Confirm `test_load_data_xlsx` is currently a no-op placeholder.
+- [x] Check Ruff availability.
+- [x] Confirm Ruff is not installed or importable.
+- [x] Confirm no Ruff configuration exists.
+- [x] Record Ruff as a pending quality-tool task.
+
+### Configuration tests
+
+- [x] Add `test_config.py`.
+- [x] Test default configuration values.
+- [x] Test environment variable overrides.
+- [x] Test comma-separated recipient parsing.
+- [x] Test empty and single-recipient behavior.
+- [x] Run focused configuration tests: 4 passed.
+- [x] Run the combined suite after configuration tests: 10 passed,
+      0 failed, 0 skipped.
+- [x] Confirm no application configuration logic was modified.
+
+### PDF generator tests
+
+- [x] Add `test_pdf_generator.py`.
+- [x] Test PDF generation with a numeric summary and chart.
+- [x] Test PDF generation with a numeric summary and no chart.
+- [x] Test output-directory creation in a temporary directory.
+- [x] Test that the generated PDF is non-empty.
+- [x] Test the `%PDF` file signature.
+- [x] Use temporary paths and avoid the real `output/` directory.
+- [x] Confirm no network, SMTP, `.env`, or secret dependency.
+- [x] Run focused PDF tests: 3 passed.
+- [x] Run the combined suite after PDF tests: 13 passed,
+      0 failed, 0 skipped.
+- [x] Confirm `pdf_generator.py` was not modified.
+- [x] Confirm quick-reviewer returned PASS.
+- [x] Confirm code-reviewer returned APPROVE FOR COMMIT.
+
+### Email sender tests
+
+- [x] Add `test_email_sender.py`.
+- [x] Test missing sender configuration.
+- [x] Test missing password configuration.
+- [x] Test empty recipient configuration.
+- [x] Test missing PDF file behavior.
+- [x] Test successful SMTP interaction with mocked `SMTP_SSL`.
+- [x] Test SMTP failure behavior without real network calls.
+- [x] Run focused email tests: 6 passed.
+- [x] Run the accumulated suite after email tests: 19 passed,
+      0 failed, 0 skipped.
+- [x] Confirm `email_sender.py` was not modified.
+- [x] Confirm no real credentials, `.env`, network, or SMTP server were used.
+- [x] Confirm quick-reviewer returned PASS.
+
+### Remaining automated quality work
+
+- [ ] Add real XLSX loading coverage to replace the no-op placeholder.
+- [ ] Add empty-dataset coverage.
+- [ ] Add missing-file coverage.
+- [ ] Add malformed CSV/XLSX coverage.
+- [ ] Add `main.run_report` pipeline integration tests.
+- [ ] Cover email failure semantics at the pipeline level.
+- [ ] Install Ruff as a development dependency.
+- [ ] Add Ruff configuration.
+- [ ] Run `ruff check .` cleanly.
+- [ ] Review whether the test suite should move into a `tests/` package.
 
 Acceptance criteria:
-- `pytest` passes with 0 failures across all modules.
-- `ruff check .` passes cleanly.
-- Non-numeric dataset behavior is covered by an explicit test.
-- Email sending is tested without making real network/SMTP calls.
+
+- [x] `pytest` passes with 0 failures across the currently implemented test modules.
+- [x] `data_processor.py` has meaningful baseline coverage.
+- [x] `config.py` has automated coverage.
+- [x] `pdf_generator.py` has automated coverage.
+- [x] `email_sender.py` has mocked SMTP coverage.
+- [ ] The XLSX path has a real test.
+- [ ] Pipeline integration behavior is covered.
+- [ ] Ruff is installed, configured, and passes.
+
+## Phase 2 evidence log
+
+### Baseline diagnosis
+
+- Date: 2026-08-23
+- Result: 5 application modules compiled successfully.
+- Result: existing test suite passed with 6 tests.
+- Result: Ruff was unavailable and unconfigured.
+- Source of evidence: delegated `quick-explorer` report.
+
+### Configuration tests (2.2a)
+
+- Date: 2026-08-23
+- File added: `test_config.py`.
+- Focused result: 4 passed.
+- Combined result: 10 passed.
+- Application logic changed: none.
+- Review result: `quick-reviewer` PASS.
+- Source of evidence: writer and quick-reviewer reports.
+
+### PDF generator tests (2.2b)
+
+- Date: 2026-08-23
+- File added: `test_pdf_generator.py`.
+- Focused result: 3 passed.
+- Combined result: 13 passed.
+- Application logic changed: none.
+- Review result: `quick-reviewer` PASS.
+- Final review result: `code-reviewer` APPROVE FOR COMMIT.
+- Source of evidence: writer, quick-reviewer, and code-reviewer reports.
+
+### Email sender tests (2.2c)
+
+- Date: 2026-08-23
+- File added: `test_email_sender.py`.
+- Focused result: 6 passed.
+- Combined result: 19 passed.
+- Application logic changed: none.
+- SMTP behavior tested with mocks; no real network or credentials used.
+- Review result: quick-reviewer PASS.
+- Source of evidence: writer and quick-reviewer reports.
+
+### Current cumulative test count
+
+- `data_processor.py`: 6 tests.
+- `config.py`: 4 tests.
+- `pdf_generator.py`: 3 tests.
+- `email_sender.py`: 6 tests.
+- Total currently passing: 19 tests.
+
+### Phase 2.2 completion
+
+Status: complete
+
+Phase 2.2 included:
+- 2.2a: `config.py` tests.
+- 2.2b: `pdf_generator.py` tests.
+- 2.2c: `email_sender.py` tests.
+
+The accumulated suite passes with 19 tests. No application logic was changed.
+The single accumulated Phase 2.2 test commit has been created.
 
 ## Phase 3 - Domain robustness
 

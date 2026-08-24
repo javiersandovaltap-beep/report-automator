@@ -3,14 +3,14 @@
 > Single source of truth for project state. Any new AI coding session MUST read this file first.
 
 **Last updated:** 2026-08-23
-**Phase:** Phase 1 - Governance, state, and diagnosis -- IN PROGRESS. See `ROADMAP.md`.
+**Phase:** Phase 2 - Automated quality -- IN PROGRESS. Phase 2.2 complete. See `ROADMAP.md`.
 
 ---
 
 ## Project snapshot
 
 - **Type:** Local Python data-to-report automation pipeline
-- **Stack:** Python, pandas, matplotlib, reportlab, python-dotenv, schedule, pytest
+- **Stack:** Python 3.14.6, pandas, matplotlib, reportlab, python-dotenv, schedule, pytest 9.1.1
 - **OS:** Windows 10/11
 - **Interactive shell:** PowerShell
 - **Claude Code version:** 2.1.240 (confirmed)
@@ -19,117 +19,123 @@
 - **Default command:** `python main.py`
 - **Immediate command:** `python main.py --run-now`
 - **Scheduled commands:** `python main.py --schedule daily|weekly|monthly`
-- **Repository state:** clean working tree confirmed at Phase 1 start; branch `main`; tag `v1.0`.
+- **Repository state:** branch `main`, tag `v1.0`. Enforcement, agents, and
+  governance files committed (`5dc67bb`, `5fac46d`, `75918f1`).
 
 ## Pipeline stages
 
 | Stage | Module | Status | Notes |
 |---|---|---|---|
-| Data loading | `data_processor.py` | implemented | CSV and XLSX, per README and code |
-| Summary generation | `data_processor.py` | implemented, partially tested | Has a dedicated pytest suite (see baseline history) |
-| Chart generation | `data_processor.py` | implemented | Optional; returns None when not applicable |
-| PDF generation | `pdf_generator.py` | implemented, unverified in this session | Must work without a chart; not yet re-inspected in this session |
-| Email delivery | `email_sender.py` | implemented | SMTP-based; validates sender, password, and recipients before sending |
-| Scheduling | `main.py` | implemented | daily, weekly, monthly; uses the `schedule` library in-process |
-| Logging | `main.py` | implemented | Structured logging added per baseline history (commit 713ef3e) |
+| Data loading | `data_processor.py` | tested (CSV only) | `.xlsx` branch has a no-op placeholder test |
+| Summary generation | `data_processor.py` | tested | numeric and non-numeric cases both pass |
+| Chart generation | `data_processor.py` | tested | numeric and non-numeric (returns None) both pass |
+| PDF generation | `pdf_generator.py` | tested | 3 tests pass: chart, no chart, output directory |
+| Email delivery | `email_sender.py` | tested | 6 tests pass with mocked SMTP |
+| Scheduling / CLI / orchestration | `main.py` | compiles, zero test coverage | includes the known R3 email-failure-semantics bug |
+| Configuration | `config.py` | tested | 4 tests pass for defaults and environment overrides |
 
 ## Confirmed behavior
 
-- CSV and XLSX input are supported by `data_processor.load_data`.
-- `generate_summary` always returns `total_rows`, `columns`, `totals`, `averages`,
-  and `top_10`, with empty totals/averages when no numeric columns exist.
-- `generate_chart` returns `None` (not an exception) when there are fewer than
-  2 columns or no numeric columns, preserving pipeline continuity.
-- `email_sender.send_report` validates `EMAIL_SENDER`, `EMAIL_PASSWORD`, and a
-  non-empty recipient list before attempting to send, and returns `False`
-  (not an exception) on missing configuration.
-- `main.run_report` currently treats email delivery failure as an overall
-  pipeline failure (`return False`), even when the PDF was generated
-  successfully. This contradicts the intended "PDF success is independent of
-  email success" behavior and is tracked as R3 below.
-- Cloud implementation is explicitly out of scope for Phases 1-4.
+- All five application modules (`main.py`, `config.py`, `data_processor.py`,
+  `pdf_generator.py`, `email_sender.py`) compile cleanly with `py_compile`
+  (exit code 0). Verified 2026-08-23.
+- `pytest` currently passes: 6 passed, 0 failed, 0 skipped, in `test_data_processor.py`
+  (project root, no `tests/` directory exists).
+- `test_load_data_xlsx` is a placeholder with no assertions; `.xlsx` loading is
+  effectively unverified despite appearing as a passing test.
+- Ruff is not installed (no CLI, no importable module) and no configuration
+  file exists anywhere outside `.venv`. `ruff check .` cannot run at all yet.
+- Cloud implementation remains explicitly out of scope for Phases 1-4.
 
 ## Baseline history (from git log, confirmed)
 
 ```
+75918f1 docs: establish Claude Code workflow, roadmap, and session state
+5fac46d chore: add project review and implementation agents
+5dc67bb chore: add Claude Code enforcement hooks
 3f12023 (tag: v1.0) feat: implement flexible output and scheduling, update final docs
 0f7e3c5 test: add automated pytest suite for data_processor
 713ef3e feat: implement structured logging in main.py
 33e3d2d Initial commit: report automator
 ```
 
-- A pytest suite already exists for `data_processor.py` (commit 0f7e3c5).
-  Its exact coverage (which functions, which edge cases) has not yet been
-  re-verified in this session and must be confirmed in Phase 2.
-- Structured logging was added to `main.py` before this session (commit 713ef3e).
-- Configurable output paths and scheduling frequency were finalized at v1.0
-  (commit 3f12023).
-
-## Enforcement layer added in this session
-
-- `.claude/settings.json`: permission rules (allow/ask/deny), including
-  denying reads of `.env`/secrets, denying edits to `AGENTS.md`/`CLAUDE.md`,
-  denying `git push --force`, and requiring approval for `git commit`/`git push`.
-- `.claude/hooks/block-dangerous-commands.ps1` (PreToolUse): denies recursive
-  delete, force push, and destructive SQL patterns. Functionally validated:
-  denied a `Remove-Item -Recurse -Force` payload, allowed a `git status` payload.
-- `.claude/hooks/protect-project-files.ps1` (PreToolUse): denies Edit/Write
-  targeting `AGENTS.md` or `CLAUDE.md`. Functionally validated against both files.
-- `.claude/hooks/validate-after-edit.ps1` (PostToolUse): runs `py_compile` on
-  any `.py` file after Edit/Write. Functionally validated against a temporary
-  test file.
-- Committed as `5dc67bb chore: add Claude Code enforcement hooks`.
-
-## Agents added in this session
-
-Created under `.claude/agents/`: `quick-explorer.md` (haiku, read-only),
-`writer.md` (sonnet, edit/write, no commit/push), `quick-reviewer.md` (haiku,
-read-only), `architecture-reviewer.md` (opus, read-only), `code-reviewer.md`
-(sonnet, read-only). Each declares `name`, `description`, `model`, and `tools`
-explicitly and includes an operational instruction body, not only metadata.
-
-Legacy artifacts preserved unchanged: `.claude/agents/reviewer_agent.md` and
-`.claude/skills/architecture_reviewer.md`.
-
-Not yet committed as of this update; pending final diff review.
+- Note: the `5fac46d` agent commit unintentionally deleted the legacy
+  `.claude/agents/reviewer_agent.md` while adding the five new agents. This
+  was a side effect of the file copy, not a deliberate decision. `code-reviewer.md`
+  is confirmed as its functional replacement (final pre-commit gate, applies
+  the same `architecture_reviewer` skill). `.claude/skills/architecture_reviewer.md`
+  was not affected and remains in place.
 
 ## Known bugs and risks
 
-### R1 - Baseline syntax integrity -- OPEN, needs re-verification this session
+### R1 - Baseline syntax integrity -- RESOLVED (2026-08-23)
 
-- A prior file extraction suggested possible formatting/indentation issues in
-  `main.py`, `data_processor.py`, and `email_sender.py`. This was never
-  confirmed against the actual repository files with `py_compile`.
-- Action: run `python -m py_compile main.py config.py data_processor.py pdf_generator.py email_sender.py`
-  before any further functional change.
+- `python -m py_compile main.py config.py data_processor.py pdf_generator.py email_sender.py`
+  exits 0. All five files compile without error. The earlier concern (based on
+  a lossy file extraction, not the real repository) is closed.
 
 ### R2 - Configuration validation -- OPEN
 
-- `config.py` loads environment values with minimal validation (e.g.,
-  `EMAIL_RECIPIENTS` is split on commas with no format check; `SCHEDULE_TIME`
-  is not validated as `HH:MM`).
+- `config.py` loads environment values with minimal validation.
 - Target phase: Phase 3.
 
 ### R3 - Email failure semantics -- OPEN, confirmed in code
 
 - `main.run_report` returns `False` when `send_report` fails, even if the PDF
-  was generated successfully. This should be a partial success, not a failure.
+  was generated successfully.
 - Target phase: Phase 3.
 
 ### R4 - In-process scheduler -- OPEN
 
-- The `schedule` library requires a continuously running process; there is no
-  persistence, retry, or recovery if the process dies.
-- Target phase: Phase 4 (documented as a trade-off, Windows Task Scheduler as
-  an alternative).
+- The `schedule` library requires a continuously running process.
+- Target phase: Phase 4.
 
-### R5 - Test suite scope -- OPEN, partially resolved
+### R5 - Test suite scope -- IN PROGRESS (2026-08-23)
 
-- A pytest suite exists for `data_processor.py` (commit 0f7e3c5), so testing
-  is not absent, but its exact coverage of edge cases (empty dataset, no
-  numeric columns, malformed file) is unconfirmed.
-- `pdf_generator.py` and `email_sender.py` have no confirmed test coverage yet.
-- Target phase: Phase 2.
+- Confirmed coverage:
+  - `data_processor.py`: 6 passing baseline tests.
+  - `config.py`: 4 passing tests.
+  - `pdf_generator.py`: 3 passing tests.
+  - `email_sender.py`: 6 passing tests using mocked SMTP.
+- Current accumulated total: 19 passing tests.
+- `test_load_data_xlsx` remains a no-op placeholder and must be replaced
+  with a real XLSX test.
+- Zero confirmed integration coverage remains for `main.py`.
+- Target phase: Phase 2.3 and Phase 2.4.
+
+### R6 - Ruff not installed, no configuration -- OPEN (2026-08-23)
+
+- `ruff` is not on PATH, not importable in the active interpreter, and not
+  present in `.venv`.
+- No `pyproject.toml`, `ruff.toml`, or equivalent project configuration exists.
+- `ruff check .` cannot run until Ruff is installed and configured.
+- Target phase: Phase 2.5.
+
+### R7 - Configuration tests use module reload -- MONITORED
+
+- `test_config.py` reloads `config` under patched environment variables.
+- The current full suite passes with 10 tests, so no contamination was observed.
+- If the suite grows, replace repeated reload logic with a more isolated
+  configuration-loading design or dedicated fixtures.
+- Target phase: Phase 3.
+
+### R8 - PDF test depth -- MONITORED (2026-08-23)
+
+- `test_pdf_generator.py` verifies PDF creation, non-empty output, the `%PDF`
+  signature, chart/no-chart execution, and output-directory creation.
+- It does not validate full PDF text/content structure or large-dataset memory
+  behavior.
+- The tests patch `pdf_generator.OUTPUT_PDF` and use temporary directories.
+- These limitations do not block the current phase.
+- Target phase: future test refinement if needed.
+
+### R9 - Email tests validate mocked delivery only -- MONITORED (2026-08-23)
+
+- `test_email_sender.py` covers missing configuration, missing PDF files,
+  successful SMTP_SSL interaction, and SMTP failure using mocks.
+- No real SMTP server, credentials, or network calls are used.
+- End-to-end email delivery remains unverified by design.
+- Target phase: local production validation, only if explicitly required.
 
 ## Workflow discipline
 
@@ -140,20 +146,26 @@ Not yet committed as of this update; pending final diff review.
 4. Do not modify unrelated files.
 5. Do not modify AGENTS.md or CLAUDE.md without explicit approval in the
    current session.
-6. Keep operational files (this file, ROADMAP.md, AGENTS.md, CLAUDE.md,
-   agent files, skills) in English; prefer ASCII-safe content.
+6. Keep operational files in English; prefer ASCII-safe content.
 7. Validation order: `py_compile` -> focused `pytest` -> full `pytest` ->
    `ruff check` -> quick-reviewer -> architecture-reviewer (boundary changes
    only) -> code-reviewer.
 8. Update this file after every accepted commit.
 9. Do not claim a feature is implemented or fixed until it has been validated
    with an actual command, not just by reading the code.
+10. **Orchestration rule (new, 2026-08-23): when a task is delegated to a
+    subagent, the main session must wait for that subagent's final report
+    before running any command itself.** The main session must not duplicate
+    the subagent's verification work in parallel and merge results afterward.
+    If the main session needs its own verification, it runs before or after
+    the subagent's turn, never concurrently with it, and the report must state
+    which agent produced which finding.
 
 ## Phase progress
 
-- [ ] Phase 1 - Governance, state, and diagnosis (in progress; enforcement and
-      governance files done, baseline diagnosis and final commits pending)
-- [ ] Phase 2 - Automated quality
+- [x] Phase 1 - Governance, state, and diagnosis
+- [ ] Phase 2 - Automated quality (in progress; baseline diagnosis,
+      coverage mapping, and Phase 2.2 module tests complete)
 - [ ] Phase 3 - Domain robustness
 - [ ] Phase 4 - CLI and local production readiness
 - [ ] Future - Distribution and cloud preparation (deferred, backlog only)
@@ -163,19 +175,26 @@ Not yet committed as of this update; pending final diff review.
 - [2026-08-22] Portfolio quality, local production readiness, and Claude Code
   workflow practice are the primary goals; cloud preparation is deferred.
 - [2026-08-22] Only Phases 1-4 are approved for implementation now.
-- [2026-08-22] Implementation order for Phase 1: hooks/settings first, then
-  agents, then CLAUDE.md/AGENTS.md, then SESSION_STATE.md/ROADMAP.md last.
 - [2026-08-22] Five agents used instead of a single reviewer: quick-explorer,
   writer, quick-reviewer, architecture-reviewer, code-reviewer.
 - [2026-08-22] Model assignment: quick-explorer=haiku, writer=sonnet,
   quick-reviewer=haiku, architecture-reviewer=opus, code-reviewer=sonnet.
-- [2026-08-22] All operational Claude Code files (agents, skills, CLAUDE.md,
-  AGENTS.md, SESSION_STATE.md, ROADMAP.md) are written in English to reduce
-  token usage; user communication may remain in Spanish.
 - [2026-08-23] Agents, CLAUDE.md, AGENTS.md, SESSION_STATE.md, and ROADMAP.md
-  for Phase 1 were authored directly (outside Claude Code) using the full
-  session context, instead of having Claude Code draft them from scratch, to
-  close Phase 1 efficiently.
+  for Phase 1 were authored directly using full session context instead of
+  having Claude Code draft them from scratch.
+- [2026-08-23] `reviewer_agent.md` deletion (side effect of the Phase 1 agent
+  commit) accepted as final; `code-reviewer.md` is its functional replacement.
+- [2026-08-23] Phase 1 formally closed. Phase 2 started.
+- [2026-08-23] Orchestration rule added: main session must wait for a
+  delegated subagent's final report before running its own verification
+  commands, to avoid duplicated/interleaved work.
+- [2026-08-23] Phase 2 step 2.2a completed: added `test_config.py` with 4
+  tests; full suite passes with 10 tests.
+- [2026-08-23] Phase 2.2 completed: tests were added for config.py,
+  pdf_generator.py, and email_sender.py. The accumulated suite passes
+  with 19 tests and no production logic was changed.
+- [2026-08-23] Agent definitions were updated to enforce single-invocation
+  reviewer stages and prevent uncontrolled delegation or repeated retries.
 
 ## Session log
 
@@ -184,43 +203,107 @@ Not yet committed as of this update; pending final diff review.
 - Objective: apply the Claude Code Playbook to Report Automator; establish
   enforcement before creating agents or updating instructions.
 - Work completed: created and validated `.claude/settings.json` and three
-  PowerShell hooks; committed as `5dc67bb`. Created five agent files
-  (initial versions had frontmatter defects, flagged for repair).
+  PowerShell hooks; committed as `5dc67bb`.
 - Commands executed: `git status`, `git log`, `claude --version`, JSON
-  validation, PowerShell parser validation, direct hook payload tests
-  (dangerous command denied, safe command allowed, protected files denied,
-  Python syntax check passed).
-- Evidence: hook outputs captured directly in the terminal session.
+  validation, PowerShell parser validation, direct hook payload tests.
 - Decisions: see Decisions section above.
-- Open items: agent files needed repair; CLAUDE.md/AGENTS.md/SESSION_STATE.md/
-  ROADMAP.md not yet created.
 
 ### 2026-08-23 - Phase 1 closeout
 
-- Objective: close Phase 1 by finalizing agents and governance files without
-  redundant redrafting inside Claude Code.
+- Objective: close Phase 1 by finalizing agents and governance files.
 - Work completed: authored final versions of the five agent files, CLAUDE.md,
-  AGENTS.md, ROADMAP.md, and this SESSION_STATE.md directly, using full
-  session context from Phase 1 planning.
-- Commands executed: none yet in this update; pending user execution of
-  diff review and commit.
-- Evidence: content consistency cross-checked against enforcement layer,
-  approved priorities, and confirmed git history.
-- Decisions: see 2026-08-23 entry in Decisions section above.
-- Open items: run baseline diagnosis (py_compile, pytest, ruff) and commit
-  the governance files as separate atomic commits; then re-open Phase 1
-  acceptance criteria checklist in ROADMAP.md.
+  AGENTS.md, ROADMAP.md, and SESSION_STATE.md directly. Committed as
+  `5fac46d` (agents) and `75918f1` (governance docs).
+- Open items: `reviewer_agent.md` was unintentionally deleted during the
+  agent commit; documented and accepted as a decision, not reverted.
+
+### 2026-08-23 - Phase 2 baseline diagnosis
+
+- Objective: resolve the Phase 1 carryover diagnosis task before writing any
+  new Phase 2 tests.
+- Work completed: delegated to `quick-explorer`. Confirmed `py_compile` passes
+  on all five modules (R1 resolved). Confirmed exact test coverage of
+  `test_data_processor.py` (R5 precisely mapped, still open). Confirmed ruff
+  is not installed and has no configuration (new risk R6).
+- Commands executed (by quick-explorer): `python -m py_compile ...`,
+  `python -m pytest -v`, ruff availability checks.
+- Process issue: the main orchestrating session ran some of the same
+  verification commands itself while quick-explorer was still running,
+  then merged both outputs into one report. This duplicated work and
+  produced a confusing combined result. Root cause: no explicit instruction
+  telling the main session to wait for the subagent before acting. Fixed by
+  adding the orchestration rule above; future prompts will state explicitly
+  that the main session must not act until the subagent returns.
+- Decisions: R1 closed as resolved; R5 kept open with precise scope; R6 opened.
+
+### 2026-08-23 - Phase 2 config tests
+
+- Objective: add automated tests for `config.py` without changing application logic.
+- Work completed: created `test_config.py` with 4 tests covering defaults,
+  environment overrides, and EMAIL_RECIPIENTS parsing.
+- Commands executed: `python -m py_compile config.py test_config.py`;
+  `python -m pytest test_config.py -v`;
+  `python -m pytest test_data_processor.py -v`;
+  `python -m pytest -v`.
+- Evidence: 10 tests passed, 0 failures, 0 skips. quick-reviewer returned PASS.
+- Architecture review: not required; no module boundary or configuration-flow code changed.
+- Open items: replace the no-op XLSX test; add tests for pdf_generator.py and
+  email_sender.py; install/configure Ruff.
 
 ## Lessons learned
 
-- Do not treat `customInstructions` in settings.json as technical enforcement;
-  it is a behavior-layer hint, not a permission or hook.
+- Do not treat `customInstructions` in settings.json as technical enforcement.
 - Verify hook and permission compatibility against the installed Claude Code
   version before relying on a specific schema.
 - Do not claim a Python file has a syntax error based only on a lossy file
   extraction; verify with `py_compile` against the real repository file.
 - An agent's own "completed successfully" report is not evidence; verify
-  frontmatter and tool lists directly with `Select-String`/`Get-Content`
-  before staging or committing.
+  frontmatter, tool lists, and diffs directly before staging or committing.
 - Keep tracked Markdown files ASCII-safe where possible to avoid encoding
   corruption from automated edits.
+- A no-op test (assertion-free, pass-only) can silently mask missing coverage;
+  always inspect test bodies, not just test names, when mapping coverage.
+- When delegating to a subagent, the orchestrating session must wait for its
+  return before running its own commands; concurrent or overlapping execution
+  produces duplicated, hard-to-attribute results.
+  
+### 2026-08-23 - Phase 2 PDF tests
+
+- Objective: add automated tests for `pdf_generator.py` without changing
+  application logic.
+- Work completed: created `test_pdf_generator.py` with 3 tests covering PDF
+  generation with a chart, PDF generation without a chart, and output-directory
+  creation.
+- Commands executed:
+  - `python -m py_compile pdf_generator.py test_pdf_generator.py`
+  - `python -m pytest test_pdf_generator.py -v`
+  - `python -m pytest test_pdf_generator.py test_config.py test_data_processor.py -v`
+- Evidence: 3 focused tests passed; the combined suite passed with 13 tests,
+  0 failures, and 0 skips. quick-reviewer and code-reviewer returned PASS /
+  APPROVE FOR COMMIT.
+- Application logic was not modified.
+- Open items: add email_sender.py tests, replace the XLSX placeholder, add
+  integration coverage, and configure Ruff.
+
+  ### 2026-08-23 - Phase 2.2 completion
+
+- Objective: complete automated unit coverage for configuration, PDF generation,
+  and email delivery.
+- Work completed:
+  - Added `test_config.py` with 4 tests.
+  - Added `test_pdf_generator.py` with 3 tests.
+  - Added `test_email_sender.py` with 6 tests using mocked SMTP.
+- Verification:
+  - All relevant modules and tests compiled successfully.
+  - Accumulated test suite passed with 19 tests, 0 failures, and 0 skips.
+  - No application logic was changed.
+  - No real SMTP, network, credentials, or `.env` values were used.
+- Workflow hardening:
+  - Updated writer and reviewer agent definitions to limit repeated
+    invocations, retries, and uncontrolled delegation.
+- Commit:
+  - Test changes were committed as the single accumulated Phase 2.2 test unit.
+- Open items:
+  - Phase 2.3 real XLSX and edge-case tests.
+  - Phase 2.4 pipeline integration tests.
+  - Phase 2.5 Ruff installation and configuration.

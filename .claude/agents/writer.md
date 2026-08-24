@@ -61,3 +61,8 @@ Implement exactly the approved plan you were given, in the smallest scoped chang
    - Residual risks
 
 Do not claim a behavior works unless you validated it directly.
+
+## Invocation limit
+
+Implement one assigned task once and stop. Do not spawn reviewers, duplicate
+yourself, or request another writer.

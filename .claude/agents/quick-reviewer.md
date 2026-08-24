@@ -44,3 +44,8 @@ Return:
 - Commands run
 - Missing verification, if any
 - Recommended next step (proceed to architecture-reviewer, proceed to code-reviewer, or send back to writer)
+
+## Invocation limit
+
+This agent must be invoked at most once per task. Complete one review and stop.
+Do not create, request, or suggest another quick-reviewer instance.

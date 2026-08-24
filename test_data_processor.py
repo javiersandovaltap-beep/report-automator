@@ -1,6 +1,7 @@
 import pandas as pd
-import os
+import pytest
 import tempfile
+import os
 from data_processor import load_data, generate_summary, generate_chart
 
 def test_generate_summary_with_numeric():
@@ -68,8 +69,54 @@ def test_load_data_csv():
     assert len(df) == 2
     assert list(df.columns) == ['name', 'city']
 
-def test_load_data_xlsx():
-    # We don't have an example .xlsx file, but we can test that the function doesn't break
-    # We'll skip this test if there's no .xlsx file, or we can create a simple one.
-    # For now, we'll just note that we are not testing .xlsx because we don't have a sample.
-    pass
+def test_load_data_xlsx(tmp_path):
+    df_expected = pd.DataFrame({
+        "name": ["Alice", "Bob", "Charlie"],
+        "age": [25, 30, 35],
+        "salary": [50000, 60000, 70000]
+    })
+    xlsx_path = tmp_path / "sample.xlsx"
+
+    df_expected.to_excel(xlsx_path, index=False)
+
+    df_result = load_data(str(xlsx_path))
+
+    assert isinstance(df_result, pd.DataFrame)
+    pd.testing.assert_frame_equal(df_result, df_expected)
+
+def test_load_data_empty_dataset(tmp_path):
+    csv_path = tmp_path / "empty.csv"
+    csv_path.write_text("name,age,salary\n", encoding="utf-8")
+
+    df_result = load_data(str(csv_path))
+
+    assert isinstance(df_result, pd.DataFrame)
+    assert df_result.empty
+    assert list(df_result.columns) == ["name", "age", "salary"]
+
+def test_load_data_missing_file():
+    # Create a path that doesn't exist
+    nonexistent_path = 'this_file_does_not_exist.csv'
+
+    # Call load_data and assert the actual exception raised
+    with pytest.raises(FileNotFoundError):
+        load_data(nonexistent_path)
+
+def test_load_data_malformed_csv(tmp_path):
+    csv_path = tmp_path / "malformed.csv"
+    csv_path.write_text(
+        "name,age,salary\n"
+        "Alice,25\n"  # Missing one column
+        "Bob,30,70000,extra\n",  # Extra column
+        encoding="utf-8",
+    )
+
+    with pytest.raises(pd.errors.ParserError):
+        load_data(str(csv_path))
+
+def test_load_data_malformed_xlsx(tmp_path):
+    xlsx_path = tmp_path / "malformed.xlsx"
+    xlsx_path.write_bytes(b"This is not a valid XLSX file content")
+
+    with pytest.raises(ValueError):
+        load_data(str(xlsx_path))

@@ -59,3 +59,8 @@ Return exactly this structure:
 [Final Verdict]
 
 Final Verdict must be either APPROVE FOR COMMIT or REJECT, with a one-line reason.
+
+## Invocation limit
+
+This agent must be invoked at most once per task. Complete one final review and
+stop. Do not create, request, or suggest another code-reviewer instance.

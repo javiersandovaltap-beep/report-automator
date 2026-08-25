@@ -1,7 +1,5 @@
 import os
-from unittest.mock import patch, MagicMock
-import pytest
-from email_sender import send_report
+from unittest.mock import MagicMock, patch
 
 
 def test_send_report_missing_sender():
@@ -9,6 +7,7 @@ def test_send_report_missing_sender():
     with patch.dict(os.environ, {}, clear=True):
         # Import and reload config to get None values
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -24,6 +23,7 @@ def test_send_report_missing_password():
     """Test that send_report returns False when EMAIL_PASSWORD is not set."""
     with patch.dict(os.environ, {'EMAIL_SENDER': 'sender@example.com'}, clear=True):
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -42,6 +42,7 @@ def test_send_report_no_recipients():
         'EMAIL_RECIPIENTS': ''  # Empty string results in [''] after split
     }, clear=True):
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -60,6 +61,7 @@ def test_send_report_missing_pdf_file():
         'EMAIL_RECIPIENTS': 'recipient@example.com'
     }, clear=True):
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -83,6 +85,7 @@ def test_send_report_success(mock_smtp_ssl):
         'EMAIL_RECIPIENTS': 'recipient1@example.com,recipient2@example.com'
     }, clear=False):  # clear=False to keep existing env vars for other imports
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -125,6 +128,7 @@ def test_send_report_smtp_exception(mock_smtp_ssl):
         'EMAIL_RECIPIENTS': 'recipient@example.com'
     }, clear=False):
         import importlib
+
         import config
         importlib.reload(config)
 

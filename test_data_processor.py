@@ -1,8 +1,11 @@
+import os
+import tempfile
+
 import pandas as pd
 import pytest
-import tempfile
-import os
-from data_processor import load_data, generate_summary, generate_chart
+
+from data_processor import generate_chart, generate_summary, load_data
+
 
 def test_generate_summary_with_numeric():
     # Create a DataFrame with numeric columns

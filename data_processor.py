@@ -1,5 +1,10 @@
+import logging
+
 import pandas as pd
-from config import DATA_FILE, CHART_OUTPUT_DIR
+
+from config import CHART_OUTPUT_DIR, DATA_FILE
+
+logger = logging.getLogger(__name__)
 
 
 def load_data(filepath: str = DATA_FILE) -> pd.DataFrame:
@@ -31,10 +36,11 @@ def generate_summary(df: pd.DataFrame) -> dict:
     return summary
 
 
-def generate_chart(df: pd.DataFrame, output_path: str = None) -> str | None:
+def generate_chart(df: pd.DataFrame, output_path: str | None = None) -> str | None:
     """Genera un gráfico de barras y lo guarda como imagen."""
-    import matplotlib.pyplot as plt
     import os
+
+    import matplotlib.pyplot as plt
 
     if output_path is None:
         output_path = os.path.join(CHART_OUTPUT_DIR, "chart.png")
@@ -52,7 +58,7 @@ def generate_chart(df: pd.DataFrame, output_path: str = None) -> str | None:
 
     try:
         top = df.nlargest(10, value_col)
-        fig, ax = plt.subplots(figsize=(10, 5))
+        _fig, ax = plt.subplots(figsize=(10, 5))
         ax.bar(top[label_col].astype(str), top[value_col], color="#2563EB")
         ax.set_title(f"Top 10 — {value_col}", fontsize=14, fontweight="bold")
         ax.set_xlabel(label_col)
@@ -61,8 +67,8 @@ def generate_chart(df: pd.DataFrame, output_path: str = None) -> str | None:
         plt.tight_layout()
         plt.savefig(output_path, dpi=150)
         plt.close()
-    except Exception as e:
-        print(f"⚠️  Advertencia: falló la generación del gráfico: {type(e).__name__}: {e}")
+    except Exception:
+        logger.warning("Falló la generación del gráfico", exc_info=True)
         return None
 
     return output_path

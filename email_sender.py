@@ -1,36 +1,40 @@
+import logging
 import smtplib
+from datetime import datetime
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
-from datetime import datetime
-from config import EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECIPIENTS, REPORT_TITLE
+
+from config import EMAIL_PASSWORD, EMAIL_RECIPIENTS, EMAIL_SENDER, REPORT_TITLE
+
+logger = logging.getLogger(__name__)
 
 
 def send_report(pdf_path: str) -> bool:
     """Envía el reporte PDF por correo a todos los destinatarios configurados."""
     # Configuration pre-validation
     if not EMAIL_SENDER:
-        print("Error: EMAIL_SENDER is not set.")
+        logger.error("Error: EMAIL_SENDER is not set.")
         return False
     if not EMAIL_PASSWORD:
-        print("Error: EMAIL_PASSWORD is not set.")
+        logger.error("Error: EMAIL_PASSWORD is not set.")
         return False
-    # Normalize recipients: strip whitespace and discard empty entries
+    
     recipients = [r.strip() for r in EMAIL_RECIPIENTS if r.strip()]
     if not recipients:
-        print("Error: No valid email recipients configured.")
+        logger.error("Error: No valid email recipients configured.")
         return False
 
     try:
         msg = MIMEMultipart()
         msg["From"]    = EMAIL_SENDER
         msg["To"]      = ", ".join(recipients)
-        msg["Subject"] = f"{REPORT_TITLE} — {datetime.now().strftime('%d/%m/%Y')}"
+        msg["Subject"] = f"{REPORT_TITLE} — {datetime.now().astimezone().strftime('%d/%m/%Y')}"
 
         body = f"""
         <html><body>
         <h2 style="color:#1E3A5F">📊 {REPORT_TITLE}</h2>
-        <p>Adjunto encontrarás el reporte automático generado el <b>{datetime.now().strftime('%d/%m/%Y a las %H:%M')}</b>.</p>
+        <p>Adjunto encontrarás el reporte automático generado el <b>{datetime.now().astimezone().strftime('%d/%m/%Y a las %H:%M')}</b>.</p>
         <p>Este reporte fue generado automáticamente. No responder a este correo.</p>
         <hr>
         <small style="color:#64748B">Report Automator · Sistema de Reportes Automáticos</small>
@@ -47,8 +51,8 @@ def send_report(pdf_path: str) -> bool:
             server.login(EMAIL_SENDER, EMAIL_PASSWORD)
             server.sendmail(EMAIL_SENDER, recipients, msg.as_string())
 
-        print(f" Reporte enviado a: {', '.join(recipients)}")
+        logger.info("Reporte enviado a: %s", ", ".join(recipients))
         return True
-    except Exception as e:
-        print(f" Error sending report: {type(e).__name__}: {e}")
+    except Exception:
+        logger.exception("Error al enviar el reporte")
         return False

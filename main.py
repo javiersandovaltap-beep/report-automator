@@ -1,12 +1,16 @@
 import argparse
-import schedule
-import time
 import logging
+import time
 from datetime import datetime
-from data_processor import load_data, generate_summary, generate_chart
-from pdf_generator import build_pdf
+
+import schedule
+
+from config import DATA_FILE, SCHEDULE_TIME
+from data_processor import generate_chart, generate_summary, load_data
 from email_sender import send_report
-from config import DATA_FILE, SCHEDULE_TIME, SCHEDULE_FREQUENCY, CHART_OUTPUT_DIR
+from pdf_generator import build_pdf
+
+logger = logging.getLogger(__name__)
 
 # Configure structured logging
 logging.basicConfig(
@@ -17,37 +21,37 @@ logging.basicConfig(
 
 
 def run_report():
-    logging.info("Iniciando generación de reporte...")
+    logger.info("Iniciando generación de reporte...")
     try:
-        logging.info("Cargando datos...")
+        logger.info("Cargando datos...")
         df = load_data(DATA_FILE)
-        logging.info("Datos cargados.")
+        logger.info("Datos cargados.")
 
-        logging.info("Generando resumen...")
+        logger.info("Generando resumen...")
         summary = generate_summary(df)
-        logging.info("Resumen generado.")
+        logger.info("Resumen generado.")
 
-        logging.info("Generando gráfico...")
+        logger.info("Generando gráfico...")
         chart = generate_chart(df)
         if chart is None:
-            logging.warning("Gráfico omitido: no se pudo generar o no aplica.")
+            logger.warning("Gráfico omitido: no se pudo generar o no aplica.")
         else:
-            logging.info("Gráfico generado.")
+            logger.info("Gráfico generado.")
 
-        logging.info("Construyendo PDF...")
+        logger.info("Construyendo PDF...")
         pdf = build_pdf(summary, chart)
-        logging.info("PDF construido.")
+        logger.info("PDF construido.")
 
-        logging.info("Enviando correo...")
+        logger.info("Enviando correo...")
         result = send_report(pdf)
         if result:
-            logging.info(f"Reporte completado: {pdf}")
+            logger.info(f"Reporte completado: {pdf}")
             return True
         else:
-            logging.error("Falló el envío del reporte (ver los errores arriba)")
+            logger.error("Falló el envío del reporte (ver los errores arriba)")
             return False
-    except Exception as e:
-        logging.error(f"Error inesperado en la generación del reporte: {type(e).__name__}: {e}")
+    except Exception:
+        logger.exception("Error inesperado en la generación del reporte")
         return False
 
 
@@ -61,13 +65,13 @@ def main():
         run_report()
     elif args.schedule == "daily":
         schedule.every().day.at(SCHEDULE_TIME).do(run_report)
-        logging.info(f"��⏰ Programado: todos los días a las {SCHEDULE_TIME}")
+        logger.info(f"��⏰ Programado: todos los días a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)
     elif args.schedule == "weekly":
         schedule.every().monday.at(SCHEDULE_TIME).do(run_report)
-        logging.info(f"��⏰ Programado: todos los lunes a las {SCHEDULE_TIME}")
+        logger.info(f"��⏰ Programado: todos los lunes a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)
@@ -75,10 +79,10 @@ def main():
         # Schedule for the first day of each month
         # schedule library doesn't have native monthly, so we do daily and check date
         def job():
-            if datetime.now().day == 1:
+            if datetime.now().astimezone().day == 1:
                 run_report()
         schedule.every().day.at(SCHEDULE_TIME).do(job)
-        logging.info(f"��������������⏰ Programado: primer día de cada mes a las {SCHEDULE_TIME}")
+        logger.info(f"��������������⏰ Programado: primer día de cada mes a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)

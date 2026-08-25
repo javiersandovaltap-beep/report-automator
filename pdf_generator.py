@@ -1,18 +1,28 @@
-import os
+import logging
 import math
+import os
 from datetime import datetime
-from reportlab.lib.pagesizes import A4
+
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (
-    SimpleDocTemplate, Table, TableStyle, Paragraph,
-    Spacer, Image, HRFlowable
+    HRFlowable,
+    Image,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
 )
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from config import REPORT_TITLE, COMPANY_NAME, OUTPUT_PDF
+
+from config import COMPANY_NAME, OUTPUT_PDF, REPORT_TITLE
+
+logger = logging.getLogger(__name__)
 
 
-def build_pdf(summary: dict, chart_path: str = None) -> str:
+def build_pdf(summary: dict, chart_path: str | None = None) -> str:
     """Genera un PDF profesional con métricas y tabla resumen."""
     os.makedirs("output", exist_ok=True)
 
@@ -39,7 +49,7 @@ def build_pdf(summary: dict, chart_path: str = None) -> str:
     story.append(Paragraph(REPORT_TITLE, title_style))
     story.append(
         Paragraph(
-            f"{COMPANY_NAME} · {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            f"{COMPANY_NAME} · {datetime.now().astimezone().strftime('%d/%m/%Y %H:%M')}",
             styles["Normal"],
         )
     )
@@ -81,7 +91,7 @@ def build_pdf(summary: dict, chart_path: str = None) -> str:
             story.append(Image(chart_path, width=15 * cm, height=7 * cm))
             story.append(Spacer(1, 0.5 * cm))
         except Exception:
-            pass
+            logger.warning("No se pudo insertar el gráfico en el PDF", exc_info=True)
 
     # --- Tabla Top 10 ---
     story.append(Paragraph("Top 10 Registros", styles["Heading2"]))

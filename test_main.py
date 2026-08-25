@@ -1,6 +1,7 @@
-import pytest
+from unittest.mock import patch
+
 import pandas as pd
-from unittest.mock import patch, MagicMock
+
 import main
 
 

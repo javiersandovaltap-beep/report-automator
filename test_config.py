@@ -1,17 +1,5 @@
 import os
 from unittest.mock import patch
-from config import (
-    EMAIL_SENDER,
-    EMAIL_PASSWORD,
-    EMAIL_RECIPIENTS,
-    DATA_FILE,
-    REPORT_TITLE,
-    COMPANY_NAME,
-    OUTPUT_PDF,
-    SCHEDULE_TIME,
-    SCHEDULE_FREQUENCY,
-    CHART_OUTPUT_DIR
-)
 
 
 def test_config_defaults():
@@ -26,6 +14,7 @@ def test_config_defaults():
     with patch.dict(os.environ, {}, clear=True):
         # Reload the config module to pick up the patched environment
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -63,6 +52,7 @@ def test_config_with_env_vars():
     with patch.dict(os.environ, test_env, clear=False):
         # Reload the config module to pick up the patched environment
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -83,6 +73,7 @@ def test_config_email_recipients_empty():
     """Test that EMAIL_RECIPIENTS handles empty string correctly."""
     with patch.dict(os.environ, {'EMAIL_RECIPIENTS': ''}):
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -94,6 +85,7 @@ def test_config_email_recipients_single():
     """Test that EMAIL_RECIPIENTS handles single email correctly."""
     with patch.dict(os.environ, {'EMAIL_RECIPIENTS': 'single@example.com'}):
         import importlib
+
         import config
         importlib.reload(config)
 
@@ -102,5 +94,7 @@ def test_config_email_recipients_single():
 
 # Reload config with original environment to avoid affecting other tests
 import importlib
+
 import config
+
 importlib.reload(config)

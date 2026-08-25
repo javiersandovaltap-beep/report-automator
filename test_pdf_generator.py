@@ -1,8 +1,8 @@
 import os
-import tempfile
-import pandas as pd
 from unittest.mock import patch
-import pytest
+
+import pandas as pd
+
 from pdf_generator import build_pdf
 
 

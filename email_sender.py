@@ -19,7 +19,7 @@ def send_report(pdf_path: str) -> bool:
     if not EMAIL_PASSWORD:
         logger.error("Error: EMAIL_PASSWORD is not set.")
         return False
-    
+
     recipients = [r.strip() for r in EMAIL_RECIPIENTS if r.strip()]
     if not recipients:
         logger.error("Error: No valid email recipients configured.")

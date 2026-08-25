@@ -58,7 +58,7 @@ Acceptance criteria:
 
 ## Phase 2 - Automated quality
 
-Status: in progress
+Status: complete
 
 ### Baseline diagnosis
 
@@ -75,9 +75,10 @@ Status: in progress
 - [x] Confirm the existing test file is `test_data_processor.py` at repository root.
 - [x] Confirm `test_load_data_xlsx` is currently a no-op placeholder.
 - [x] Check Ruff availability.
-- [x] Confirm Ruff is not installed or importable.
-- [x] Confirm no Ruff configuration exists.
-- [x] Record Ruff as a pending quality-tool task.
+- [x] Install Ruff as a development dependency.
+- [x] Add Ruff configuration in `pyproject.toml`.
+- [x] Record and review the initial Ruff baseline.
+- [x] Resolve the reviewed Ruff findings without broad global ignores.
 
 ### Configuration tests
 
@@ -124,17 +125,37 @@ Status: in progress
 - [x] Confirm no real credentials, `.env`, network, or SMTP server were used.
 - [x] Confirm quick-reviewer returned PASS.
 
+### XLSX and edge-case tests (Phase 2.3)
+
+Status: complete
+
+- [x] Replace the no-op `test_load_data_xlsx` placeholder.
+- [x] Add a real temporary XLSX loading test.
+- [x] Add empty-dataset coverage.
+- [x] Add missing-file coverage.
+- [x] Add malformed CSV coverage.
+- [x] Add malformed XLSX coverage.
+- [x] Verify numeric and non-numeric behavior remains stable.
+- [x] Run the focused suite: 10 passed.
+- [x] Run the accumulated suite: 23 passed.
+- [x] Confirm no production logic changed.
+
+### Pipeline integration tests (Phase 2.4)
+
+Status: complete
+
+- [x] Add integration coverage for `main.run_report()`.
+- [x] Mock email delivery.
+- [x] Verify successful report generation and delivery.
+- [x] Verify current email-failure semantics.
+- [x] Verify processing-exception semantics.
+- [x] Keep network and SMTP calls disabled.
+- [x] Run the accumulated suite: 26 passed.
+- [x] Confirm no production logic changed.
+- [x] Commit Phase 2.4 implementation as `7e2e7cd`.
+
 ### Remaining automated quality work
 
-- [ ] Add real XLSX loading coverage to replace the no-op placeholder.
-- [ ] Add empty-dataset coverage.
-- [ ] Add missing-file coverage.
-- [ ] Add malformed CSV/XLSX coverage.
-- [ ] Add `main.run_report` pipeline integration tests.
-- [ ] Cover email failure semantics at the pipeline level.
-- [ ] Install Ruff as a development dependency.
-- [ ] Add Ruff configuration.
-- [ ] Run `ruff check .` cleanly.
 - [ ] Review whether the test suite should move into a `tests/` package.
 
 Acceptance criteria:
@@ -144,9 +165,11 @@ Acceptance criteria:
 - [x] `config.py` has automated coverage.
 - [x] `pdf_generator.py` has automated coverage.
 - [x] `email_sender.py` has mocked SMTP coverage.
-- [ ] The XLSX path has a real test.
-- [ ] Pipeline integration behavior is covered.
-- [ ] Ruff is installed, configured, and passes.
+- [x] The XLSX path has a real test.
+- [x] Pipeline integration behavior is covered.
+- [x] Cover current email failure semantics at the pipeline level.
+- [x] Ruff is installed, configured, and passes.
+- [ ] The test suite has been evaluated for migration into a `tests/` package.
 
 ## Phase 2 evidence log
 
@@ -190,13 +213,61 @@ Acceptance criteria:
 - Review result: quick-reviewer PASS.
 - Source of evidence: writer and quick-reviewer reports.
 
+### Phase 2.3 evidence
+
+- Date: 2026-08-23
+- File changed: `test_data_processor.py`.
+- Tests added or replaced:
+  - real XLSX loading;
+  - empty dataset;
+  - missing file;
+  - malformed CSV;
+  - malformed XLSX.
+- Focused result: 10 passed.
+- Accumulated result: 23 passed.
+- Production logic changed: none.
+- Input exception behavior verified in the current pandas/openpyxl environment.
+
+### Phase 2.4 evidence
+
+- Date: 2026-08-23
+- File added: `test_main.py`.
+- Tests added:
+  - successful pipeline;
+  - email delivery failure;
+  - processing exception.
+- Focused result: 3 passed.
+- Accumulated result: 26 passed.
+- Production logic changed: none.
+- External services: SMTP and network disabled through mocks.
+- Commit: `7e2e7cd`.
+
+### Phase 2.5 evidence
+
+- Date: 2026-08-24
+- Tool: Ruff 0.16.4 installed in the project virtual environment.
+- Configuration: `pyproject.toml`.
+- Implementation commit: `e209fa8`.
+- Initial baseline: 69 findings.
+- Final result: `ruff check . --output-format=concise` passed with no findings.
+- Rules addressed: I001, F401, RUF013, RUF059, LOG015, S110, DTZ005, BLE001,
+  G201, and RUF100.
+- Tests after cleanup: 26 passed.
+- Compilation after cleanup: passed for all five application modules.
+- Functional behavior: preserved according to the existing test suite.
+- Observable output: error-path `print()` calls were migrated to logging.
+- Top-level `except Exception` remains intentional in `main.py` and logs with
+  `logger.exception`.
+- Source of evidence: terminal verification performed on 2026-08-24.
+
 ### Current cumulative test count
 
-- `data_processor.py`: 6 tests.
+- `data_processor.py`: 10 tests.
 - `config.py`: 4 tests.
 - `pdf_generator.py`: 3 tests.
 - `email_sender.py`: 6 tests.
-- Total currently passing: 19 tests.
+- `main.py`: 3 tests.
+- Total currently passing: 26 tests.
 
 ### Phase 2.2 completion
 
@@ -209,6 +280,63 @@ Phase 2.2 included:
 
 The accumulated suite passes with 19 tests. No application logic was changed.
 The single accumulated Phase 2.2 test commit has been created.
+
+### Phase 2.3 completion
+
+Status: complete
+
+Phase 2.3 included:
+- Replaced the no-op XLSX test.
+- Added empty-dataset coverage.
+- Added missing-file coverage.
+- Added malformed CSV coverage.
+- Added malformed XLSX coverage.
+
+The focused `data_processor.py` suite passed with 10 tests. No application logic
+was changed. The Phase 2.3 implementation was committed as `38e1193`.
+
+### Phase 2.4 completion
+
+Status: complete
+
+Phase 2.4 included:
+- Added `test_main.py`.
+- Covered successful pipeline execution.
+- Covered current email-failure semantics.
+- Covered processing-exception semantics.
+
+The accumulated suite passed with 26 tests. No application logic was changed.
+The Phase 2.4 implementation was committed as `7e2e7cd`.
+
+### Phase 2.5 completion
+
+Status: complete
+
+Phase 2.5 included:
+
+- Added Ruff 0.16.4 as a development dependency in `requirements.txt`.
+- Added project Ruff configuration in `pyproject.toml`.
+- Resolved import-order and unused-import findings.
+- Corrected Optional annotations and the unused chart variable.
+- Migrated root logger calls in `main.py` to a module-specific logger.
+- Replaced silent chart-insertion failure with warning logging.
+- Replaced application error-path `print()` calls with logging.
+- Resolved timezone findings with local timezone-aware datetime values.
+- Preserved the intentional top-level exception boundary in `main.py`.
+- Resolved the final `BLE001`, `G201`, and `RUF100` findings.
+
+Verification:
+
+- All five application modules passed `py_compile`.
+- The accumulated suite passed with 26 tests, 0 failures, and 0 skips.
+- `ruff check . --output-format=concise` passed with no findings.
+- No broad global Ruff ignore was added.
+- Functional return values and tested control flow were preserved.
+- Error-path output changed from stdout printing to logging.
+
+Implementation commit: `e209fa8`.
+
+No application feature scope was added in Phase 2.5.
 
 ## Phase 3 - Domain robustness
 

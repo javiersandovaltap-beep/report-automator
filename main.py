@@ -1,11 +1,12 @@
 import argparse
 import logging
+import sys
 import time
 from datetime import datetime
 
 import schedule
 
-from config import DATA_FILE, SCHEDULE_TIME
+from config import DATA_FILE, SCHEDULE_TIME, validate_config
 from data_processor import generate_chart, generate_summary, load_data
 from email_sender import send_report
 from pdf_generator import build_pdf
@@ -60,6 +61,13 @@ def main():
     parser.add_argument("--run-now",  action="store_true", help="Ejecutar inmediatamente")
     parser.add_argument("--schedule", choices=["daily", "weekly", "monthly"], help="Programar ejecución")
     args = parser.parse_args()
+
+    # Validate configuration
+    try:
+        validate_config()
+    except ValueError as e:
+        logger.error(str(e))
+        sys.exit(1)
 
     if args.run_now:
         run_report()

@@ -346,7 +346,9 @@ Status: in progress (R2, R3 complete)
       values, valid SCHEDULE_TIME format, valid recipient list).
 - [x] Decouple "PDF generated successfully" from "email delivered successfully"
       in the run result (see AGENTS.md Regla 5).
-- [ ] Replace any remaining print statements with structured logging.
+- [x] Replace any remaining print statements with structured logging.
+      (Verified already resolved by Phase 2.5 / R12; no print() remained in
+      any of the five application modules as of 2026-09-03.)
 - [ ] Define a structured run result (files produced, email status, timing).
 - [ ] Improve CLI exit codes to distinguish partial success from full failure.
 - [ ] Handle temporary/generated files (chart.png, report.pdf) safely, avoiding

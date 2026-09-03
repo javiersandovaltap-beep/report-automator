@@ -299,6 +299,11 @@ result / temp file safety). See `ROADMAP.md`.
   before both R2 and R3). This entry backfills both. Going forward,
   documentation-only updates to these two files are applied directly via
   Git Bash scripts run by the user, not delegated to Claude Code.
+- [2026-09-03] Verified (not implemented) that the Phase 3 "remove residual
+  prints" item was already satisfied by Phase 2.5 / R12: `grep -n "print("`
+  across main.py, config.py, data_processor.py, pdf_generator.py, and
+  email_sender.py returned zero matches. No code change was needed; this
+  item is closed by verification only.
 
 ## Session log
 

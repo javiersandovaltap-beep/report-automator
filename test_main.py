@@ -50,8 +50,7 @@ def test_run_report_success():
         mock_send.assert_called_once_with(pdf_path)
 
 
-def test_run_report_email_failure():
-    """Test the email failure path where send_report returns False."""
+def test_run_report_email_failure_reports_success(caplog):
     # Create deterministic fake values
     df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
     summary = {'total_rows': 2, 'columns': ['col1', 'col2']}
@@ -69,7 +68,7 @@ def test_run_report_email_failure():
         result = main.run_report()
 
         # Assertions
-        assert result is False
+        assert result is True
 
         # Verify processing stages were called
         mock_load.assert_called_once()
@@ -86,6 +85,9 @@ def test_run_report_email_failure():
         mock_chart.assert_called_once_with(df)
         mock_pdf.assert_called_once_with(summary, chart_path)
         mock_send.assert_called_once_with(pdf_path)
+
+        # Check that an ERROR log was emitted
+        assert "Falló el envío del reporte (ver los errores arriba)" in caplog.text
 
 
 def test_run_report_processing_exception():

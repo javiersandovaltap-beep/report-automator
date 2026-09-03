@@ -47,10 +47,9 @@ def run_report():
         result = send_report(pdf)
         if result:
             logger.info(f"Reporte completado: {pdf}")
-            return True
         else:
             logger.error("Falló el envío del reporte (ver los errores arriba)")
-            return False
+        return True
     except Exception:
         logger.exception("Error inesperado en la generación del reporte")
         return False

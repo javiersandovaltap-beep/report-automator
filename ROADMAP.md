@@ -340,11 +340,11 @@ No application feature scope was added in Phase 2.5.
 
 ## Phase 3 - Domain robustness
 
-Status: pending
+Status: in progress (R2, R3 complete)
 
-- [ ] Add explicit configuration validation in config.py (required vs optional
+- [x] Add explicit configuration validation in config.py (required vs optional
       values, valid SCHEDULE_TIME format, valid recipient list).
-- [ ] Decouple "PDF generated successfully" from "email delivered successfully"
+- [x] Decouple "PDF generated successfully" from "email delivered successfully"
       in the run result (see AGENTS.md Regla 5).
 - [ ] Replace any remaining print statements with structured logging.
 - [ ] Define a structured run result (files produced, email status, timing).
@@ -356,6 +356,45 @@ Acceptance criteria:
 - A failed email delivery does not cause a valid PDF run to be reported as failed.
 - Configuration errors are caught early with a clear message.
 - No print statements remain in application code.
+
+### Phase 3 R2 evidence -- Configuration validation
+
+- Date: 2026-08-25
+- Files changed: config.py, main.py, test_config.py.
+- config.py: EMAIL_RECIPIENTS filters empty/whitespace entries at load time
+  ([] instead of ['']). New validate_config() validates SCHEDULE_TIME
+  format only (24-hour HH:MM); email credential validation intentionally
+  untouched in email_sender.py (Regla 5).
+- main.py: validate_config() called once at startup; exits non-zero with a
+  logged message on ValueError. run_report() unchanged in this commit.
+- test_config.py: extended to 8 tests (4 new for validate_config, 2
+  existing assertions updated).
+- Focused result: 8 passed (test_config.py).
+- Full suite result: 30 passed, 0 failed, 0 skipped.
+- Ruff: clean.
+- Review chain: writer -> quick-reviewer (PASS) -> architecture-reviewer
+  (blocked by provider rate limiting; equivalent manual review performed,
+  verdict APPROVE) -> code-reviewer (APPROVE FOR COMMIT).
+- Commit: `660e7c7`.
+
+### Phase 3 R3 evidence -- Email failure semantics
+
+- Date: 2026-09-03
+- Files changed: main.py, test_main.py.
+- main.py: `run_report()` now returns `True` whenever the PDF was built
+  successfully, regardless of email delivery result. Email failure still
+  logged at ERROR level.
+- test_main.py: renamed and updated `test_run_report_email_failure` to
+  `test_run_report_email_failure_reports_success`; added caplog assertion.
+- Focused result: 3 passed (test_main.py).
+- Full suite result: 30 passed, 0 failed, 0 skipped.
+- Ruff: clean.
+- Process note: this task's orchestrating session made several
+  unauthorized file modifications outside main.py/test_main.py; all were
+  discarded before commit (see SESSION_STATE.md 2026-09-03 session log).
+- Minor debt: docstring dropped and a duplicated comment line left in the
+  committed test body (cosmetic only, not corrected in this commit).
+- Commit: `a1894e7`.
 
 ## Phase 4 - CLI and local production readiness
 

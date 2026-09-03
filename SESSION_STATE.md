@@ -2,9 +2,10 @@
 
 > Single source of truth for project state. Any new AI coding session MUST read this file first.
 
-**Last updated:** 2026-08-24
+**Last updated:** 2026-09-03
 **Phase:** Phase 2 - Automated quality COMPLETE. Phase 3 - Domain robustness
-pending. See `ROADMAP.md`.
+IN PROGRESS (R2, R3 complete; next: remove residual prints / structured run
+result / temp file safety). See `ROADMAP.md`.
 
 ---
 
@@ -21,8 +22,9 @@ pending. See `ROADMAP.md`.
 - **Immediate command:** `python main.py --run-now`
 - **Scheduled commands:** `python main.py --schedule daily|weekly|monthly`
 - **Repository state:** branch `main`, tag `v1.0`. Enforcement, agents,
-  governance files, Phase 2.4 tests, and Phase 2.5 Ruff cleanup committed.
-  Latest implementation commit: `e209fa8`.
+  governance files, Phase 2.4 tests, Phase 2.5 Ruff cleanup, Phase 3 R2
+  configuration validation, and Phase 3 R3 email-failure semantics
+  committed. Latest implementation commit: `a1894e7`.
 
 ## Pipeline stages
 
@@ -34,14 +36,14 @@ pending. See `ROADMAP.md`.
 | PDF generation | `pdf_generator.py` | tested | 3 tests pass: chart, no chart, output directory |
 | Email delivery | `email_sender.py` | tested | 6 tests pass with mocked SMTP |
 | Scheduling / CLI / orchestration | `main.py` | integration-tested | `run_report()` has 3 integration tests; CLI and scheduler remain untested |
-| Configuration | `config.py` | tested | 4 tests pass for defaults and environment overrides |
+| Configuration | `config.py` | tested | 8 tests pass: defaults, environment overrides, EMAIL_RECIPIENTS filtering, and SCHEDULE_TIME validation |
 
 ## Confirmed behavior
 
 - All five application modules (`main.py`, `config.py`, `data_processor.py`,
   `pdf_generator.py`, `email_sender.py`) compile cleanly with `py_compile`
   (exit code 0). Verified 2026-08-23.
-- `pytest` currently passes: 26 passed, 0 failed, 0 skipped.
+- `pytest` currently passes: 30 passed, 0 failed, 0 skipped.
 - `test_load_data_xlsx` now has real XLSX coverage; input and edge-case
   coverage includes empty datasets, missing files, malformed CSV, and malformed
   XLSX behavior.
@@ -49,6 +51,15 @@ pending. See `ROADMAP.md`.
   and processing-exception semantics.
 - Ruff 0.16.4 is installed in `.venv`, configured in `pyproject.toml`, and
   `ruff check .` passes with no findings.
+- `config.py` now exposes `validate_config()`, which validates SCHEDULE_TIME
+  format (24-hour HH:MM) and raises ValueError on invalid input.
+  EMAIL_RECIPIENTS now filters empty/whitespace entries at load time.
+- `main.py` calls `validate_config()` at startup and exits non-zero with a
+  logged message on invalid configuration, before any pipeline execution.
+- `main.run_report()` now returns `True` whenever the PDF was built
+  successfully, regardless of email delivery outcome; email failures are
+  still logged at ERROR level but no longer cause the function to report
+  failure, per AGENTS.md Regla 5.
 - Cloud implementation remains explicitly out of scope for Phases 1-4.
 
 ## Baseline history (from git log, confirmed)
@@ -78,16 +89,32 @@ pending. See `ROADMAP.md`.
   exits 0. All five files compile without error. The earlier concern (based on
   a lossy file extraction, not the real repository) is closed.
 
-### R2 - Configuration validation -- OPEN
+### R2 - Configuration validation -- RESOLVED (2026-08-25)
 
-- `config.py` loads environment values with minimal validation.
-- Target phase: Phase 3.
+- `config.py` now exposes `validate_config()`, validating SCHEDULE_TIME
+  format (24-hour HH:MM) only. Email credential validation intentionally
+  stays in `email_sender.py`, unchanged, to preserve Regla 5.
+- EMAIL_RECIPIENTS now filters empty/whitespace entries at load time,
+  producing `[]` instead of `['']` for unset/empty values.
+- Commit: `660e7c7`.
 
-### R3 - Email failure semantics -- OPEN, confirmed in code
+### R3 - Email failure semantics -- RESOLVED (2026-09-03)
 
-- `main.run_report` returns `False` when `send_report` fails, even if the PDF
-  was generated successfully.
-- Target phase: Phase 3.
+- `main.run_report()` now returns `True` whenever the PDF was built
+  successfully, regardless of email delivery outcome. Email failures are
+  still logged at ERROR level via `logger.error`, but no longer cause the
+  function to report failure, per AGENTS.md Regla 5.
+- `test_main.py`: `test_run_report_email_failure` renamed to
+  `test_run_report_email_failure_reports_success`; assertion changed from
+  `is False` to `is True`; added a `caplog`-based assertion confirming the
+  ERROR log is still emitted on email failure.
+- Verification: `py_compile` clean; `test_main.py` focused 3/3; full suite
+  30/30; `ruff check .` clean. Independently re-verified by the user in
+  terminal, separate from any agent report.
+- Minor cosmetic debt (not blocking): the committed diff dropped the
+  docstring from the renamed test entirely and left a duplicated comment
+  line (`# Create deterministic fake values`). Harmless; fix opportunistically.
+- Commit: `a1894e7`.
 
 ### R4 - In-process scheduler -- OPEN
 
@@ -195,6 +222,17 @@ pending. See `ROADMAP.md`.
     If the main session needs its own verification, it runs before or after
     the subagent's turn, never concurrently with it, and the report must state
     which agent produced which finding.
+11. Provider/session discipline (added 2026-09-03): the orchestrating
+    session's own narrative summary of a subagent's report is not evidence.
+    Require the subagent's report to be printed verbatim before acting on
+    its verdict. Do not run `git checkout -- <file>` on a file known to have
+    uncommitted work-in-progress changes when testing something unrelated;
+    it reverts the entire file, not just the tested edit. A session may
+    attempt unauthorized file modifications outside the approved scope,
+    including trying to edit a protected file or the hook that blocked it;
+    always verify `git status` and `git diff --stat` against the explicitly
+    approved file list before treating any commit as ready, regardless of
+    what the agent's own report claims.
 
 ## Phase progress
 
@@ -202,7 +240,7 @@ pending. See `ROADMAP.md`.
 - [x] Phase 2 - Automated quality (complete; baseline diagnosis, Phase 2.2
       module tests, Phase 2.3 input/edge-case tests, Phase 2.4 pipeline
       integration tests, and Phase 2.5 Ruff quality cleanup complete)
-- [ ] Phase 3 - Domain robustness
+- [ ] Phase 3 - Domain robustness (R2, R3 complete; remaining work open)
 - [ ] Phase 4 - CLI and local production readiness
 - [ ] Future - Distribution and cloud preparation (deferred, backlog only)
 
@@ -245,6 +283,22 @@ pending. See `ROADMAP.md`.
   `main.run_report()` was retained and converted to `logger.exception()`.
 - [2026-08-24] Local timezone-aware datetime values were introduced to resolve
   DTZ005 while preserving local displayed time.
+- [2026-08-25] Phase 3 R2 (configuration validation) completed: SCHEDULE_TIME
+  format validation added to config.py; EMAIL_RECIPIENTS now filters empty
+  entries at load time. Committed as `660e7c7`.
+- [2026-08-25] Confirmed actual model backend behind Claude Code's
+  `haiku`/`sonnet`/`opus` agent aliases: NVIDIA NIM serving DeepSeek V4
+  Flash, Nemotron 3 Super 120B, and MiniMax M3 respectively, not Anthropic
+  models.
+- [2026-09-03] Phase 3 R3 (email failure semantics) completed:
+  `main.run_report()` now returns `True` whenever the PDF was built
+  successfully, regardless of email delivery outcome. Committed as
+  `a1894e7`.
+- [2026-09-03] SESSION_STATE.md and ROADMAP.md were found to be two
+  deliveries behind the repository (last touched at commit `871fbd9`,
+  before both R2 and R3). This entry backfills both. Going forward,
+  documentation-only updates to these two files are applied directly via
+  Git Bash scripts run by the user, not delegated to Claude Code.
 
 ## Session log
 
@@ -316,6 +370,20 @@ pending. See `ROADMAP.md`.
 - When delegating to a subagent, the orchestrating session must wait for its
   return before running its own commands; concurrent or overlapping execution
   produces duplicated, hard-to-attribute results.
+- A `git checkout -- <file>` on a file with uncommitted work-in-progress
+  changes reverts the entire file, not just the change being tested;
+  confirm no uncommitted work exists first, or use a narrower method.
+- Do not trust a session's final "commit hash / working tree clean" report
+  at face value; independently confirm with `git status`, `git diff --stat`,
+  and `git show --stat <hash>` before treating a task as closed.
+- A blocked, unauthorized file edit (e.g. a hook correctly denying an
+  AGENTS.md edit) can be followed by the same session attempting to modify
+  the blocking mechanism itself; always check `.claude/settings.json` and
+  `.claude/hooks/` for unauthorized changes after any session that hit a
+  permission block.
+- Keep SESSION_STATE.md and ROADMAP.md updated after every commit, even
+  small ones; a two-commit documentation gap is hard to reconstruct
+  accurately later.
   
 ### 2026-08-23 - Phase 2 PDF tests
 
@@ -412,3 +480,59 @@ pending. See `ROADMAP.md`.
   - Functional return values and tested control flow were preserved.
 - Implementation commit: `e209fa8`.
 - Phase 2 status: complete after documentation closure.
+
+### 2026-08-25 - Phase 3 R2 - Configuration validation
+
+- Objective: add configuration validation for SCHEDULE_TIME format and fix
+  the EMAIL_RECIPIENTS empty-entry bug, without touching email credential
+  validation (Regla 5).
+- Work completed:
+  - config.py: EMAIL_RECIPIENTS now filters empty/whitespace entries at
+    load time. New `validate_config()` validates SCHEDULE_TIME (24-hour
+    HH:MM), raises ValueError if invalid.
+  - main.py: calls `validate_config()` at startup; exits non-zero with a
+    logged message on invalid configuration.
+  - test_config.py: extended to 8 tests (4 new for validate_config, 2
+    existing assertions updated for the EMAIL_RECIPIENTS fix).
+- Verification: `py_compile` clean; focused suite 8/8; full suite 30/30;
+  `ruff check .` clean.
+- Review chain: writer -> quick-reviewer (PASS) -> architecture-reviewer
+  (blocked by NVIDIA NIM provider rate limiting on the opus-tier alias;
+  equivalent manual review performed outside Claude Code, verdict APPROVE)
+  -> code-reviewer (APPROVE FOR COMMIT).
+- Commit: `660e7c7`.
+
+### 2026-09-03 - Phase 3 R3 - Email failure semantics
+
+- Objective: decouple PDF-generation success from email-delivery success in
+  `main.run_report()`, per AGENTS.md Regla 5.
+- Work completed:
+  - main.py: `run_report()` now returns `True` whenever the PDF was built
+    successfully, regardless of email delivery outcome. Email failures are
+    still logged at ERROR level.
+  - test_main.py: `test_run_report_email_failure` renamed to
+    `test_run_report_email_failure_reports_success`; assertion changed to
+    `is True`; added a `caplog`-based assertion confirming the ERROR log is
+    still emitted.
+- Verification: `py_compile` clean; `test_main.py` focused 3/3; full suite
+  30/30; `ruff check .` clean. All independently re-verified by the user in
+  terminal, separate from any agent report.
+- Process issue: the orchestrating session made repeated, unauthorized
+  modifications outside the approved file scope during this task --
+  attempted an edit to AGENTS.md (correctly blocked by the protect-project-
+  files hook), then unauthorized edits to `.claude/settings.json`,
+  `ROADMAP.md`, and `SESSION_STATE.md`, plus an unauthorized new hook
+  (`run-tests.ps1`, ending in an unconditional `exit 0` that would never
+  actually block anything). It also invoked `quick-reviewer` far more than
+  the single-invocation rule allows. All unauthorized changes were
+  identified via `git status`/`git diff --stat` and discarded manually via
+  `git restore` / `rm` before the commit was authorized.
+- `code-reviewer` and `architecture-reviewer` were not invoked for this
+  change (small, non-architectural; reviewed manually by the user and the
+  planning session instead).
+- Commit: `a1894e7`.
+- Documentation gap discovered: SESSION_STATE.md and ROADMAP.md had not
+  been updated since commit `871fbd9`, predating both R2 and R3. Both files
+  were backfilled in this entry. Going forward, documentation-only updates
+  to these two files are applied directly via Git Bash scripts, not
+  delegated to Claude Code.

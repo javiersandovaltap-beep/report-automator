@@ -10,6 +10,7 @@ from config import DATA_FILE, SCHEDULE_TIME, validate_config
 from data_processor import generate_chart, generate_summary, load_data
 from email_sender import send_report
 from pdf_generator import build_pdf
+from result import RunResult, log_run_outcome
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ logging.basicConfig(
 
 def run_report():
     logger.info("Iniciando generación de reporte...")
+    chart = None
     try:
         logger.info("Cargando datos...")
         df = load_data(DATA_FILE)
@@ -44,15 +46,23 @@ def run_report():
         logger.info("PDF construido.")
 
         logger.info("Enviando correo...")
-        result = send_report(pdf)
-        if result:
-            logger.info(f"Reporte completado: {pdf}")
-        else:
-            logger.error("Falló el envío del reporte (ver los errores arriba)")
-        return True
-    except Exception:
+        email_sent = send_report(pdf)
+        return RunResult(
+            pdf_generated=True,
+            pdf_path=pdf,
+            chart_path=chart,
+            email_sent=email_sent,
+            error=None
+        )
+    except Exception as e:
         logger.exception("Error inesperado en la generación del reporte")
-        return False
+        return RunResult(
+            pdf_generated=False,
+            pdf_path=None,
+            chart_path=chart,
+            email_sent=False,
+            error=str(e)
+        )
 
 
 def main():
@@ -69,15 +79,23 @@ def main():
         sys.exit(1)
 
     if args.run_now:
-        run_report()
+        result = run_report()
+        log_run_outcome(result, logger)
+        sys.exit(0 if result.email_sent else (2 if result.pdf_generated else 1))
     elif args.schedule == "daily":
-        schedule.every().day.at(SCHEDULE_TIME).do(run_report)
+        def job():
+            result = run_report()
+            log_run_outcome(result, logger)
+        schedule.every().day.at(SCHEDULE_TIME).do(job)
         logger.info(f"��⏰ Programado: todos los días a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)
     elif args.schedule == "weekly":
-        schedule.every().monday.at(SCHEDULE_TIME).do(run_report)
+        def job():
+            result = run_report()
+            log_run_outcome(result, logger)
+        schedule.every().monday.at(SCHEDULE_TIME).do(job)
         logger.info(f"��⏰ Programado: todos los lunes a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
@@ -87,14 +105,17 @@ def main():
         # schedule library doesn't have native monthly, so we do daily and check date
         def job():
             if datetime.now().astimezone().day == 1:
-                run_report()
+                result = run_report()
+                log_run_outcome(result, logger)
         schedule.every().day.at(SCHEDULE_TIME).do(job)
         logger.info(f"��������������⏰ Programado: primer día de cada mes a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)
     else:
-        run_report()
+        result = run_report()
+        log_run_outcome(result, logger)
+        sys.exit(0 if result.email_sent else (2 if result.pdf_generated else 1))
 
 
 if __name__ == "__main__":

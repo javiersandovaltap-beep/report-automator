@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pandas as pd
 
 import main
+from result import RunResult, log_run_outcome
 
 
 def test_run_report_success():
@@ -24,7 +25,12 @@ def test_run_report_success():
         result = main.run_report()
 
         # Assertions
-        assert result is True
+        assert isinstance(result, RunResult)
+        assert result.pdf_generated is True
+        assert result.email_sent is True
+        assert result.pdf_path == pdf_path
+        assert result.chart_path == chart_path
+        assert result.error is None
 
         # Verify each stage was called exactly once
         mock_load.assert_called_once()
@@ -50,7 +56,7 @@ def test_run_report_success():
         mock_send.assert_called_once_with(pdf_path)
 
 
-def test_run_report_email_failure_reports_success(caplog):
+def test_run_report_email_failure_partial_success(caplog):
     # Create deterministic fake values
     df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
     summary = {'total_rows': 2, 'columns': ['col1', 'col2']}
@@ -68,7 +74,12 @@ def test_run_report_email_failure_reports_success(caplog):
         result = main.run_report()
 
         # Assertions
-        assert result is True
+        assert isinstance(result, RunResult)
+        assert result.pdf_generated is True
+        assert result.email_sent is False
+        assert result.pdf_path == pdf_path
+        assert result.chart_path == chart_path
+        assert result.error is None
 
         # Verify processing stages were called
         mock_load.assert_called_once()
@@ -86,7 +97,9 @@ def test_run_report_email_failure_reports_success(caplog):
         mock_pdf.assert_called_once_with(summary, chart_path)
         mock_send.assert_called_once_with(pdf_path)
 
-        # Check that an ERROR log was emitted
+        # Now we must call log_run_outcome to produce the log for the assertion
+        log_run_outcome(result, main.logger)
+        # Check that an ERROR log was emitted (from log_run_outcome)
         assert "Falló el envío del reporte (ver los errores arriba)" in caplog.text
 
 
@@ -106,7 +119,13 @@ def test_run_report_processing_exception():
         result = main.run_report()
 
         # Assertions
-        assert result is False
+        assert isinstance(result, RunResult)
+        assert result.pdf_generated is False
+        assert result.email_sent is False
+        assert result.pdf_path is None
+        assert result.chart_path is None
+        assert result.error is not None
+        assert "summary failure" in result.error
 
         # Verify load_data was called
         mock_load.assert_called_once()

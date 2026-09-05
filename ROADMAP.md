@@ -340,7 +340,7 @@ No application feature scope was added in Phase 2.5.
 
 ## Phase 3 - Domain robustness
 
-Status: in progress (R2, R3 complete)
+Status: in progress (R2, R3, structured run result + exit codes complete)
 
 - [x] Add explicit configuration validation in config.py (required vs optional
       values, valid SCHEDULE_TIME format, valid recipient list).
@@ -349,8 +349,8 @@ Status: in progress (R2, R3 complete)
 - [x] Replace any remaining print statements with structured logging.
       (Verified already resolved by Phase 2.5 / R12; no print() remained in
       any of the five application modules as of 2026-09-03.)
-- [ ] Define a structured run result (files produced, email status, timing).
-- [ ] Improve CLI exit codes to distinguish partial success from full failure.
+- [x] Define a structured run result (files produced, email status, timing).
+- [x] Improve CLI exit codes to distinguish partial success from full failure.
 - [ ] Handle temporary/generated files (chart.png, report.pdf) safely, avoiding
       collisions between runs.
 
@@ -397,6 +397,40 @@ Acceptance criteria:
 - Minor debt: docstring dropped and a duplicated comment line left in the
   committed test body (cosmetic only, not corrected in this commit).
 - Commit: `a1894e7`.
+
+### Phase 3 - Structured run result and CLI exit codes evidence
+
+- Date: 2026-09-05
+- Files changed: result.py (new), main.py, test_main.py.
+- result.py: new RunResult dataclass (pdf_generated, pdf_path, chart_path,
+  email_sent, error) and log_run_outcome() helper centralizing outcome
+  logging across all 5 call sites in main.py.
+- main.py: run_report() returns RunResult instead of bool, preserving
+  existing try/except structure and R3's email-failure semantics unchanged.
+  --run-now and default branches now sys.exit() with 0 (full success) / 2
+  (partial success, PDF ok email failed) / 1 (full failure, no PDF). The
+  three schedule.every()...do(...) branches wrapped to call log_run_outcome()
+  without ever calling sys.exit(), since they run inside the long-lived
+  scheduler loop.
+- test_main.py: rewrote the 3 run_report() tests to assert RunResult fields;
+  renamed test_run_report_email_failure_reports_success to
+  test_run_report_email_failure_partial_success.
+- Verification: py_compile clean; full suite 30/30; ruff check clean.
+- Review chain: writer -> quick-reviewer (session 1, clean) ->
+  architecture-reviewer (session 2, APPROVE, but see process note below) ->
+  code-reviewer (session 3, APPROVE FOR COMMIT).
+- Process note: in both the architecture-reviewer and code-reviewer sessions,
+  the orchestrating CLI session did not wait passively for the backgrounded
+  subagent - it narrated its own guessed/duplicated text before or alongside
+  the real agent output, making the pasted terminal transcript unreliable as
+  a clean verbatim report on both occasions. File scope stayed correct in
+  both sessions (confirmed via git status before and after). The
+  architecture review was treated as a documented manual deviation: the user
+  and the planning assistant independently reviewed the same diff outside
+  Claude Code and found no blocking issues. This is a new failure pattern,
+  distinct from the R3 file-scope-creep incident, worth watching in future
+  sessions with these NIM-routed aliases.
+- Commit: `51d48f7`.
 
 ## Phase 4 - CLI and local production readiness
 

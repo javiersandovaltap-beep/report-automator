@@ -2,10 +2,10 @@
 
 > Single source of truth for project state. Any new AI coding session MUST read this file first.
 
-**Last updated:** 2026-09-03
+**Last updated:** 2026-09-05
 **Phase:** Phase 2 - Automated quality COMPLETE. Phase 3 - Domain robustness
-IN PROGRESS (R2, R3 complete; next: remove residual prints / structured run
-result / temp file safety). See `ROADMAP.md`.
+IN PROGRESS (R2, R3, structured run result + CLI exit codes complete;
+remaining: temp file safety). See `ROADMAP.md`.
 
 ---
 
@@ -23,8 +23,9 @@ result / temp file safety). See `ROADMAP.md`.
 - **Scheduled commands:** `python main.py --schedule daily|weekly|monthly`
 - **Repository state:** branch `main`, tag `v1.0`. Enforcement, agents,
   governance files, Phase 2.4 tests, Phase 2.5 Ruff cleanup, Phase 3 R2
-  configuration validation, and Phase 3 R3 email-failure semantics
-  committed. Latest implementation commit: `a1894e7`.
+  configuration validation, Phase 3 R3 email-failure semantics, and Phase 3
+  structured run result + CLI exit codes committed. Latest implementation
+  commit: `51d48f7`.
 
 ## Pipeline stages
 
@@ -60,6 +61,10 @@ result / temp file safety). See `ROADMAP.md`.
   successfully, regardless of email delivery outcome; email failures are
   still logged at ERROR level but no longer cause the function to report
   failure, per AGENTS.md Regla 5.
+- `main.run_report()` now returns a `RunResult` dataclass (result.py) instead
+  of a bare bool, preserving the same success/failure semantics. `main()`
+  resolves CLI exit codes (0/2/1) only at the --run-now and default call
+  sites; the three scheduler call sites never call sys.exit().
 - Cloud implementation remains explicitly out of scope for Phases 1-4.
 
 ## Baseline history (from git log, confirmed)
@@ -541,3 +546,25 @@ result / temp file safety). See `ROADMAP.md`.
   were backfilled in this entry. Going forward, documentation-only updates
   to these two files are applied directly via Git Bash scripts, not
   delegated to Claude Code.
+### 2026-09-05 - Phase 3 - Structured run result and CLI exit codes
+
+- Objective: replace main.run_report()'s bool return with a structured
+  RunResult dataclass and add CLI exit codes distinguishing full success,
+  partial success (email failed), and full failure.
+- Work completed:
+  - Added result.py: RunResult dataclass and log_run_outcome() helper.
+  - main.py: run_report() returns RunResult; --run-now/default branches
+    exit 0/2/1; scheduler branches log outcome without exiting.
+  - test_main.py: rewrote 3 tests to assert RunResult fields; renamed one test.
+- Verification: py_compile clean; full suite 30/30; ruff check clean.
+  Independently re-verified by the user in terminal.
+- Review chain: writer -> quick-reviewer -> architecture-reviewer (APPROVE,
+  documented deviation due to CLI narration issue, see ROADMAP.md evidence) ->
+  code-reviewer (APPROVE FOR COMMIT).
+- Process issue: in both the architecture-reviewer and code-reviewer
+  sessions, the orchestrating session narrated/duplicated content instead of
+  waiting passively for the backgrounded subagent's real output, making the
+  terminal transcript an unreliable verbatim source on both occasions. File
+  scope remained correct in both sessions (git status clean before/after).
+- Commit: `51d48f7`.
+- R5 (temp file safety) deferred to a separate thread.

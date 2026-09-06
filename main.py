@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 
 
-def run_report():
+def run_report(dry_run: bool = False):
     logger.info("Iniciando generación de reporte...")
     chart = None
     pdf = None
@@ -56,13 +56,21 @@ def run_report():
         pdf = build_pdf(summary, chart, output_path=pdf_path)
         logger.info("PDF construido.")
 
-        logger.info("Enviando correo...")
-        email_sent = send_report(pdf)
+        if dry_run:
+            logger.info("Modo dry-run: omitiendo envío de correo")
+            email_sent = False
+            email_skipped = True
+        else:
+            logger.info("Enviando correo...")
+            email_sent = send_report(pdf)
+            email_skipped = False
+
         return RunResult(
             pdf_generated=True,
             pdf_path=pdf,
             chart_path=chart,
             email_sent=email_sent,
+            email_skipped=email_skipped,
             error=None
         )
     except Exception as e:
@@ -72,6 +80,7 @@ def run_report():
             pdf_path=None,
             chart_path=chart,
             email_sent=False,
+            email_skipped=False,
             error=str(e)
         )
 
@@ -80,6 +89,7 @@ def main():
     parser = argparse.ArgumentParser(description="Report Automator")
     parser.add_argument("--run-now",  action="store_true", help="Ejecutar inmediatamente")
     parser.add_argument("--schedule", choices=["daily", "weekly", "monthly"], help="Programar ejecución")
+    parser.add_argument("--dry-run", action="store_true", help="Ejecutar sin enviar correo (solo para pruebas)")
     args = parser.parse_args()
 
     # Validate configuration
@@ -90,12 +100,12 @@ def main():
         sys.exit(1)
 
     if args.run_now:
-        result = run_report()
+        result = run_report(dry_run=args.dry_run)
         log_run_outcome(result, logger)
-        sys.exit(0 if result.email_sent else (2 if result.pdf_generated else 1))
+        sys.exit(0 if (result.email_sent or result.email_skipped) else (2 if result.pdf_generated else 1))
     elif args.schedule == "daily":
         def job():
-            result = run_report()
+            result = run_report(dry_run=args.dry_run)
             log_run_outcome(result, logger)
         schedule.every().day.at(SCHEDULE_TIME).do(job)
         logger.info(f"��⏰ Programado: todos los días a las {SCHEDULE_TIME}")
@@ -104,7 +114,7 @@ def main():
             time.sleep(60)
     elif args.schedule == "weekly":
         def job():
-            result = run_report()
+            result = run_report(dry_run=args.dry_run)
             log_run_outcome(result, logger)
         schedule.every().monday.at(SCHEDULE_TIME).do(job)
         logger.info(f"��⏰ Programado: todos los lunes a las {SCHEDULE_TIME}")
@@ -116,7 +126,7 @@ def main():
         # schedule library doesn't have native monthly, so we do daily and check date
         def job():
             if datetime.now().astimezone().day == 1:
-                result = run_report()
+                result = run_report(dry_run=args.dry_run)
                 log_run_outcome(result, logger)
         schedule.every().day.at(SCHEDULE_TIME).do(job)
         logger.info(f"��������������⏰ Programado: primer día de cada mes a las {SCHEDULE_TIME}")
@@ -124,9 +134,9 @@ def main():
             schedule.run_pending()
             time.sleep(60)
     else:
-        result = run_report()
+        result = run_report(dry_run=args.dry_run)
         log_run_outcome(result, logger)
-        sys.exit(0 if result.email_sent else (2 if result.pdf_generated else 1))
+        sys.exit(0 if (result.email_sent or result.email_skipped) else (2 if result.pdf_generated else 1))
 
 
 if __name__ == "__main__":

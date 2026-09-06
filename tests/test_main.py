@@ -175,3 +175,65 @@ def test_run_report_processing_exception():
 
         # Verify generate_summary was called with the dataframe
         mock_summary.assert_called_once_with(df)
+
+
+def test_run_report_dry_run_skips_email():
+    # Create deterministic fake values
+    df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
+    summary = {'total_rows': 2, 'columns': ['col1', 'col2']}
+    chart_path = 'fake_chart.png'
+    pdf_path = 'fake_report.pdf'
+
+    # Patch all the functions in the main namespace except send_report
+    # We'll patch send_report and assert it's not called, or we can not patch it and then assert it wasn't called.
+    # Since we are not patching it, the real function would be called, which we don't want.
+    # So we'll patch it and then assert it was not called.
+    with patch('main.load_data', return_value=df) as mock_load, \
+         patch('main.generate_summary', return_value=summary) as mock_summary, \
+         patch('main.generate_chart', return_value=chart_path) as mock_chart, \
+         patch('main.build_pdf', return_value=pdf_path) as mock_pdf, \
+         patch('main.send_report') as mock_send:  # We don't set a return value because we expect it not to be called
+
+        # Execute the function under test with dry_run=True
+        result = main.run_report(dry_run=True)
+
+        # Assertions
+        assert isinstance(result, RunResult)
+        assert result.pdf_generated is True
+        assert result.email_sent is False
+        assert result.email_skipped is True
+        assert result.pdf_path == pdf_path
+        assert result.chart_path == chart_path
+        assert result.error is None
+
+        # Verify processing stages were called
+        mock_load.assert_called_once()
+        mock_summary.assert_called_once()
+        mock_chart.assert_called_once()
+        mock_pdf.assert_called_once()
+
+        # Verify send_report was NOT called
+        mock_send.assert_not_called()
+
+        # Verify the call chain arguments (similar to other tests)
+        mock_load.assert_called_once_with(main.DATA_FILE)
+        mock_summary.assert_called_once_with(df)
+        # generate_chart should be called with the dataframe returned by load_data and some output_path
+        assert mock_chart.call_count == 1
+        args, kwargs = mock_chart.call_args
+        assert args[0] is df  # First positional arg should be df
+        assert 'output_path' in kwargs  # Should have output_path kwarg
+        # Verify output_path has expected format: chart_YYYYMMDD_HHMMSS_XXXXXX.png
+        output_path = kwargs['output_path']
+        assert output_path.endswith('.png')
+        assert 'chart_' in output_path
+        # build_pdf should be called with summary, chart (return value from generate_chart), and some output_path
+        assert mock_pdf.call_count == 1
+        args, kwargs = mock_pdf.call_args
+        assert args[0] == summary  # First positional arg should be summary
+        assert args[1] == chart_path  # Second positional arg should be chart_path (the hardcoded return value from mock_chart)
+        assert 'output_path' in kwargs  # Should have output_path kwarg
+        # Verify output_path has expected format: report_YYYYMMDD_HHMMSS_XXXXXX.pdf
+        output_path = kwargs['output_path']
+        assert output_path.endswith('.pdf')
+        assert 'report_' in output_path

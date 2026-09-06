@@ -471,7 +471,7 @@ Phase 3 is now complete.
 
 Status: pending
 
-- [ ] Add `--dry-run` (build the report but skip email delivery).
+- [x] Add `--dry-run` (build the report but skip email delivery). DONE 2026-09-06, commit 6e3710d (dry-run-flag). See SESSION_STATE.md incident log for the code-reviewer orchestration failure on this item.
 - [ ] Add `--no-email` as an explicit alternative/alias if useful.
 - [ ] Add a `validate-config` command that checks .env without running the pipeline.
 - [ ] Document Windows Task Scheduler as an alternative to the in-process

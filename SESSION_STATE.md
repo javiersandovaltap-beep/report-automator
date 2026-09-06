@@ -713,3 +713,71 @@ safe-generated-file-paths all done). See `ROADMAP.md`.
   scope were not.
 - No corrective action was needed on file content; flagging as a new
   orchestration-discipline risk to monitor on NIM-routed aliases.
+
+### Phase 4 - dry-run-flag evidence (2026-09-06)
+
+- Files changed: result.py, main.py, tests/test_main.py.
+- result.py: RunResult gains `email_skipped: bool = False` (positioned
+  after email_sent, before error). log_run_outcome() gains a dedicated
+  branch for email_skipped, distinct from both the success and the
+  email-failure branches.
+- main.py: run_report() gains `dry_run: bool = False`. When True,
+  send_report() is never called; result reports email_skipped=True
+  instead of email_sent=False, avoiding conflation with a genuine
+  delivery failure. New `--dry-run` argparse flag propagated to all 5
+  run_report() call sites (--run-now, default, and the three
+  daily/weekly/monthly scheduler job() closures). Exit-code logic at
+  --run-now/default updated: `sys.exit(0 if (result.email_sent or
+  result.email_skipped) else (2 if result.pdf_generated else 1))`,
+  preserving exit code 2 exclusively for genuine partial failure.
+- tests/test_main.py: added test_run_report_dry_run_skips_email. The 3
+  pre-existing tests were not modified and continue passing unchanged
+  under the new default dry_run=False.
+- Verification: py_compile clean; full suite 35/35 passed, 0 failed, 0
+  skipped; ruff check clean. Independently re-verified by the user in
+  terminal, separate from any agent report.
+- Review chain: architecture-reviewer (CLI session, single invocation,
+  verdict APPROVE, cross-checked against the diff already verified
+  manually by the user and the planning assistant) -> code-reviewer CLI
+  session failed (see incident below) -> manual code-review audit
+  performed in chat instead, using the same
+  [Files Changed]/[Logic Altered]/[Tests Run]/[Verification
+  Method]/[Residual Risks] format required by CLAUDE.md.
+- Commit: `6e3710d`.
+
+### dry-run-flag -- code-reviewer orchestration incident (2026-09-06)
+
+- Unlike the two required agents (quick-explorer, writer) in the first
+  session of this task, which ran cleanly with exactly one invocation
+  each, and unlike the architecture-reviewer session, which also ran
+  cleanly with exactly one invocation, the final code-reviewer session
+  failed on both axes documented previously:
+  1. code-reviewer was relaunched at least 3 times, violating the
+     single-invocation rule explicitly stated in the orchestration
+     prompt. The three reports were inconsistent with each other: one
+     stated "all 4 tests pass" (the full suite has 35), contradicting
+     both the other two reports and the independently verified terminal
+     result.
+  2. The orchestrating session attempted to interrupt the backgrounded
+     code-reviewer agent by sending it unprompted status/queued
+     messages at least twice, in direct violation of "DO NOT INTERRUPT
+     OR SEND UNPROMPTED MESSAGES TO ANY BACKGROUNDED SUBAGENT." Both
+     attempts were blocked by the CLI itself ("You are the main
+     conversation... Send to a named agent instead"), preventing actual
+     interference with the agent's execution, but the attempt itself is
+     the violation.
+  3. Given this was the third invocation-discipline incident on this
+     same class of task within the current work (see also the
+     2026-09-06 test-suite-relocation incident), the code-reviewer gate
+     was abandoned for this item. A manual audit was performed directly
+     in chat instead, using terminal output the user re-verified
+     independently (pytest -v: 35 passed; ruff check .: All checks
+     passed; git status --short: only main.py, result.py,
+     tests/test_main.py modified).
+- No corrective file action was needed; the underlying implementation
+  was already correct and unaffected by the reviewer-stage failure.
+- Documented as a distinct pattern from both the earlier
+  quick-reviewer-relaunch incident (test-suite-relocation) and the
+  2026-09-05 narration/duplication incident: this is the first case of
+  an orchestrating session attempting active interruption of a
+  backgrounded subagent, not just relaunching or narrating over it.

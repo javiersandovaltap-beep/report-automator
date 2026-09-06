@@ -1,6 +1,7 @@
 import logging
 import math
 import os
+import uuid
 from datetime import datetime
 
 from reportlab.lib import colors
@@ -22,12 +23,23 @@ from config import COMPANY_NAME, OUTPUT_PDF, REPORT_TITLE
 logger = logging.getLogger(__name__)
 
 
-def build_pdf(summary: dict, chart_path: str | None = None) -> str:
+def build_pdf(summary: dict, chart_path: str | None = None, output_path: str | None = None) -> str:
     """Genera un PDF profesional con métricas y tabla resumen."""
-    os.makedirs("output", exist_ok=True)
+    if output_path is None:
+        output_path = OUTPUT_PDF
+
+    # Create directory for final output path
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    # Generate temporary file path with UUID to prevent race conditions
+    # Insert .tmp<uuid> before the file extension
+    root, ext = os.path.splitext(output_path)
+    tmp_path = f"{root}.tmp{uuid.uuid4().hex[:8]}{ext}"
 
     doc = SimpleDocTemplate(
-        OUTPUT_PDF,
+        tmp_path,
         pagesize=A4,
         rightMargin=2 * cm,
         leftMargin=2 * cm,
@@ -122,5 +134,17 @@ def build_pdf(summary: dict, chart_path: str | None = None) -> str:
     )
     story.append(table)
 
-    doc.build(story)
-    return OUTPUT_PDF
+    try:
+        doc.build(story)
+        # Atomically move temp file to final location
+        os.replace(tmp_path, output_path)
+    except Exception:
+        # Clean up temp file if it exists
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
+
+    return output_path

@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 import pandas as pd
 
@@ -56,6 +57,8 @@ def generate_chart(df: pd.DataFrame, output_path: str | None = None) -> str | No
     label_col = df.columns[0]
     value_col = numeric_cols[0]
 
+    # Generate temporary file path with UUID to prevent race conditions
+    tmp_path = None
     try:
         top = df.nlargest(10, value_col)
         _fig, ax = plt.subplots(figsize=(10, 5))
@@ -65,10 +68,24 @@ def generate_chart(df: pd.DataFrame, output_path: str | None = None) -> str | No
         ax.set_ylabel(value_col)
         plt.xticks(rotation=30, ha="right")
         plt.tight_layout()
-        plt.savefig(output_path, dpi=150)
+
+        # Save to temporary file first
+        # Insert .tmp<uuid> before the file extension
+        root, ext = os.path.splitext(output_path)
+        tmp_path = f"{root}.tmp{uuid.uuid4().hex[:8]}{ext}"
+        plt.savefig(tmp_path, dpi=150)
         plt.close()
+
+        # Atomically move temp file to final location
+        os.replace(tmp_path, output_path)
     except Exception:
         logger.warning("Falló la generación del gráfico", exc_info=True)
+        # Clean up temp file if it exists
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
         return None
 
     return output_path

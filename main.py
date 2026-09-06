@@ -1,12 +1,14 @@
 import argparse
 import logging
+import os
 import sys
 import time
+import uuid
 from datetime import datetime
 
 import schedule
 
-from config import DATA_FILE, SCHEDULE_TIME, validate_config
+from config import CHART_OUTPUT_DIR, DATA_FILE, OUTPUT_PDF, SCHEDULE_TIME, validate_config
 from data_processor import generate_chart, generate_summary, load_data
 from email_sender import send_report
 from pdf_generator import build_pdf
@@ -25,7 +27,11 @@ logging.basicConfig(
 def run_report():
     logger.info("Iniciando generación de reporte...")
     chart = None
+    pdf = None
     try:
+        # Generate unique run ID for this execution
+        run_id = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
+
         logger.info("Cargando datos...")
         df = load_data(DATA_FILE)
         logger.info("Datos cargados.")
@@ -35,14 +41,19 @@ def run_report():
         logger.info("Resumen generado.")
 
         logger.info("Generando gráfico...")
-        chart = generate_chart(df)
+        # Generate unique chart path
+        chart_path = os.path.join(CHART_OUTPUT_DIR, f"chart_{run_id}.png")
+        chart = generate_chart(df, output_path=chart_path)
         if chart is None:
             logger.warning("Gráfico omitido: no se pudo generar o no aplica.")
         else:
             logger.info("Gráfico generado.")
 
         logger.info("Construyendo PDF...")
-        pdf = build_pdf(summary, chart)
+        # Generate unique PDF path
+        pdf_dir = os.path.dirname(OUTPUT_PDF) if os.path.dirname(OUTPUT_PDF) else "output"
+        pdf_path = os.path.join(pdf_dir, f"report_{run_id}.pdf")
+        pdf = build_pdf(summary, chart, output_path=pdf_path)
         logger.info("PDF construido.")
 
         logger.info("Enviando correo...")

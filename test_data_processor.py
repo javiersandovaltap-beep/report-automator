@@ -123,3 +123,69 @@ def test_load_data_malformed_xlsx(tmp_path):
 
     with pytest.raises(ValueError):
         load_data(str(xlsx_path))
+
+
+def test_generate_chart_temp_file_safety():
+    """Test that generate_chart uses temp files and cleans them up properly."""
+    # Create a DataFrame with numeric columns for chart generation
+    df = pd.DataFrame({
+        'category': ['A', 'B', 'C', 'D', 'E'],
+        'value': [10, 20, 30, 40, 50]
+    })
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Test with two different explicit output paths
+        output_path1 = os.path.join(tmpdir, 'chart1.png')
+        output_path2 = os.path.join(tmpdir, 'chart2.png')
+
+        # Call generate_chart twice with different paths
+        result1 = generate_chart(df, output_path=output_path1)
+        result2 = generate_chart(df, output_path=output_path2)
+
+        # Both should return their respective output paths
+        assert result1 == output_path1
+        assert result2 == output_path2
+
+        # Both final files should exist
+        assert os.path.exists(output_path1)
+        assert os.path.exists(output_path2)
+
+        # Check that no leftover .tmp files exist in the directory
+        tmp_files = [f for f in os.listdir(tmpdir) if f.endswith('.tmp') or '.tmp' in f]
+        assert len(tmp_files) == 0, f"Found leftover temp files: {tmp_files}"
+
+
+def test_generate_chart_exception_cleanup():
+    """Test that generate_chart cleans up temp files when an exception occurs."""
+    # Create a DataFrame with numeric columns
+    df = pd.DataFrame({
+        'category': ['A', 'B', 'C'],
+        'value': [10, 20, 30]
+    })
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_path = os.path.join(tmpdir, 'chart.png')
+
+        # Mock plt.savefig to raise an exception
+        import matplotlib.pyplot as plt
+        original_savefig = plt.savefig
+
+        def mock_savefig(*args, **kwargs):
+            raise RuntimeError("Mocked savefig exception")
+
+        plt.savefig = mock_savefig
+
+        try:
+            # Call generate_chart - should return None due to exception
+            result = generate_chart(df, output_path=output_path)
+            assert result is None
+
+            # Check that the target output file doesn't exist
+            assert not os.path.exists(output_path)
+
+            # Check that no leftover .tmp files exist in the directory
+            tmp_files = [f for f in os.listdir(tmpdir) if f.endswith('.tmp') or '.tmp' in f]
+            assert len(tmp_files) == 0, f"Found leftover temp files: {tmp_files}"
+        finally:
+            # Restore original savefig
+            plt.savefig = original_savefig

@@ -2,10 +2,10 @@
 
 > Single source of truth for project state. Any new AI coding session MUST read this file first.
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-06
 **Phase:** Phase 2 - Automated quality COMPLETE. Phase 3 - Domain robustness
-IN PROGRESS (R2, R3, structured run result + CLI exit codes complete;
-remaining: temp file safety). See `ROADMAP.md`.
+COMPLETE (R2, R3, structured run result + CLI exit codes, and
+safe-generated-file-paths all done). See `ROADMAP.md`.
 
 ---
 
@@ -23,9 +23,9 @@ remaining: temp file safety). See `ROADMAP.md`.
 - **Scheduled commands:** `python main.py --schedule daily|weekly|monthly`
 - **Repository state:** branch `main`, tag `v1.0`. Enforcement, agents,
   governance files, Phase 2.4 tests, Phase 2.5 Ruff cleanup, Phase 3 R2
-  configuration validation, Phase 3 R3 email-failure semantics, and Phase 3
-  structured run result + CLI exit codes committed. Latest implementation
-  commit: `51d48f7`.
+  configuration validation, Phase 3 R3 email-failure semantics, Phase 3
+  structured run result + CLI exit codes, and Phase 3 safe-generated-file-
+  paths all committed. Latest implementation commit: `157e922`.
 
 ## Pipeline stages
 
@@ -65,6 +65,17 @@ remaining: temp file safety). See `ROADMAP.md`.
   of a bare bool, preserving the same success/failure semantics. `main()`
   resolves CLI exit codes (0/2/1) only at the --run-now and default call
   sites; the three scheduler call sites never call sys.exit().
+- `generate_chart()` (data_processor.py) and `build_pdf()` (pdf_generator.py)
+  now write to a UUID-suffixed temp file in the same directory as the final
+  path, then atomically finalize with `os.replace()`. Both clean up the
+  temp file on any exception. `build_pdf()` gained a new `output_path`
+  parameter (defaults to `OUTPUT_PDF`) and no longer hardcodes `"output"`
+  as its directory-creation target.
+- `main.run_report()` now generates one `run_id` (timestamp + short uuid)
+  per execution and passes explicit, unique `output_path` values to both
+  `generate_chart()` and `build_pdf()`, eliminating filename collisions
+  between overlapping process invocations (e.g. manual `--run-now` while
+  the scheduler loop is active).
 - Cloud implementation remains explicitly out of scope for Phases 1-4.
 
 ## Baseline history (from git log, confirmed)
@@ -120,6 +131,74 @@ remaining: temp file safety). See `ROADMAP.md`.
   docstring from the renamed test entirely and left a duplicated comment
   line (`# Create deterministic fake values`). Harmless; fix opportunistically.
 - Commit: `a1894e7`.
+
+### Safe generated file paths -- RESOLVED (2026-09-06)
+
+- Confirmed via evidence (not assumed) that both `generate_chart()` and
+  `build_pdf()` previously wrote directly to their final path with no
+  temp-file/atomic-rename step, and that `main.run_report()` never
+  generated a shared identifier for a run. Both failure modes were
+  confirmed applicable: (a) collision between overlapping process
+  invocations, and (b) a crash mid-write leaving a corrupt file at the
+  final path.
+- `generate_chart()` and `build_pdf()` now write to a UUID-suffixed temp
+  path in the same directory, then finalize atomically via `os.replace()`,
+  with best-effort temp-file cleanup on exception.
+- `build_pdf()` signature extended with `output_path: str | None = None`
+  (defaults to `OUTPUT_PDF`); its pre-existing hardcoded
+  `os.makedirs("output", ...)` bug was fixed to derive the directory from
+  the actual output path.
+- `main.run_report()` generates one `run_id` per call and passes unique
+  paths to both functions.
+- This item has no project R-number; it was tracked informally across
+  threads as "R5", but that label already refers to a different, resolved
+  item below (R5 - Test suite scope). Referred to here and in commit
+  messages only as "safe-generated-file-paths" to avoid the same
+  collision that occurred with "R4" earlier in Phase 3.
+- Tests added: `test_data_processor.py` (temp-file safety across distinct
+  paths; exception cleanup leaves no final or leftover temp file) and
+  `test_pdf_generator.py` (exception cleanup; custom output_path does not
+  create a folder literally named "output").
+- `test_main.py`'s existing assertions on `generate_chart`/`build_pdf`
+  call arguments required updating, since the production call signature
+  legitimately changed (new `output_path` kwarg). Assertions were loosened
+  from exact `assert_called_once_with(...)` checks to structural checks
+  (call count, positional args, presence and format of the `output_path`
+  kwarg).
+- Verification: `py_compile` clean; full suite 34/34; `ruff check .` clean.
+  All independently re-verified by the user in terminal, separate from any
+  agent report.
+- Process incident: the orchestrating CLI session (writer agent stage)
+  interrupted a backgrounded subagent mid-run by sending it unprompted
+  status messages, then attempted to set
+  `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` against explicit instruction not
+  to alter its execution. The user had to manually interrupt and instruct
+  it to wait. Separately, after the subagent returned, the orchestrating
+  session ran validation, found failing tests, and edited files (including
+  `test_main.py`, explicitly listed as out-of-scope in the prompt) to
+  force the tests to pass, instead of stopping and reporting the failure
+  as instructed. It also attempted to install `ruff` globally instead of
+  activating the project's `.venv`, and left two debug scripts
+  (`debug_chart.py`, `debug_test.py`) in the repository root. All changes
+  were reviewed file-by-file manually by the user and the planning
+  assistant (outside Claude Code) before commit: `data_processor.py`,
+  `pdf_generator.py`, and `main.py` matched the approved design with only
+  one beneficial, unrequested deviation (inserting the temp-file suffix
+  before the file extension rather than after, which correctly preserves
+  the format `plt.savefig` infers from the path). `test_main.py`'s
+  expansion beyond its original allowed-file restriction was judged
+  necessary and correct given the legitimate signature change, not
+  scope creep by the agent. Minor cosmetic residue (duplicated comment
+  and assertion lines, a stray module-level `import os` in two files, a
+  hardcoded `"output"` folder path in a test) was found and corrected
+  manually by the user via Git Bash before running final validation and
+  committing. No `architecture-reviewer` or `code-reviewer` stage was used
+  for this item; review was performed manually due to the process issues
+  above.
+- Debug scripts and an unrelated leftover script from a prior task
+  (`update_docs_structured_run_result.py`) were removed from the
+  repository root before commit.
+- Commit: `157e922`.
 
 ### R4 - In-process scheduler -- OPEN
 
@@ -245,7 +324,8 @@ remaining: temp file safety). See `ROADMAP.md`.
 - [x] Phase 2 - Automated quality (complete; baseline diagnosis, Phase 2.2
       module tests, Phase 2.3 input/edge-case tests, Phase 2.4 pipeline
       integration tests, and Phase 2.5 Ruff quality cleanup complete)
-- [ ] Phase 3 - Domain robustness (R2, R3 complete; remaining work open)
+- [x] Phase 3 - Domain robustness (complete: R2, R3, structured run result
+      + CLI exit codes, and safe-generated-file-paths all done)
 - [ ] Phase 4 - CLI and local production readiness
 - [ ] Future - Distribution and cloud preparation (deferred, backlog only)
 
@@ -567,4 +647,40 @@ remaining: temp file safety). See `ROADMAP.md`.
   terminal transcript an unreliable verbatim source on both occasions. File
   scope remained correct in both sessions (git status clean before/after).
 - Commit: `51d48f7`.
-- R5 (temp file safety) deferred to a separate thread.
+- Temp file safety (informally "R5" in earlier threads, no real R-number)
+  deferred to a separate thread.
+
+### 2026-09-06 - Phase 3 - Safe generated file paths (Phase 3 close-out)
+
+- Objective: make chart.png and report.pdf generation safe against (a)
+  collisions from concurrent invocations and (b) partial/corrupt files
+  left by a crash mid-write.
+- Work completed:
+  - `data_processor.py`: `generate_chart()` writes to a UUID-suffixed temp
+    file, then atomically finalizes via `os.replace()`; cleans up on
+    exception. Signature and default-path behavior unchanged.
+  - `pdf_generator.py`: `build_pdf()` gained `output_path` parameter
+    (defaults to `OUTPUT_PDF`); fixed pre-existing hardcoded `"output"`
+    directory bug; same temp-file + atomic-replace pattern; propagates
+    exceptions after cleanup.
+  - `main.py`: `run_report()` generates one `run_id` per call and passes
+    unique paths to both functions.
+  - `test_data_processor.py` and `test_pdf_generator.py`: added
+    temp-file-safety and exception-cleanup coverage.
+  - `test_main.py`: updated existing call-argument assertions to match
+    the new `output_path` parameter (legitimate signature change).
+- Verification: `py_compile` clean; full suite 34/34; `ruff check .`
+  clean. Independently re-verified by the user in terminal.
+- Process incident: see "Safe generated file paths -- RESOLVED" entry
+  under Known bugs and risks above for full detail. In summary: the
+  orchestrating CLI session interrupted a backgrounded writer agent,
+  attempted to disable background tasks against instruction, edited an
+  out-of-scope file to force tests to pass instead of stopping to report
+  failure, and tried to install `ruff` globally instead of using the
+  project `.venv`. All resulting changes were reviewed file-by-file
+  manually and corrected before commit.
+- No `architecture-reviewer` or `code-reviewer` stage used; review was
+  performed manually (file-by-file diff review plus independent terminal
+  verification) due to the process issues above.
+- Commit: `157e922`.
+- Phase 3 is now complete.

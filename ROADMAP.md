@@ -340,7 +340,8 @@ No application feature scope was added in Phase 2.5.
 
 ## Phase 3 - Domain robustness
 
-Status: in progress (R2, R3, structured run result + exit codes complete)
+Status: complete (R2, R3, structured run result + exit codes, and
+safe-generated-file-paths all done)
 
 - [x] Add explicit configuration validation in config.py (required vs optional
       values, valid SCHEDULE_TIME format, valid recipient list).
@@ -351,7 +352,7 @@ Status: in progress (R2, R3, structured run result + exit codes complete)
       any of the five application modules as of 2026-09-03.)
 - [x] Define a structured run result (files produced, email status, timing).
 - [x] Improve CLI exit codes to distinguish partial success from full failure.
-- [ ] Handle temporary/generated files (chart.png, report.pdf) safely, avoiding
+- [x] Handle temporary/generated files (chart.png, report.pdf) safely, avoiding
       collisions between runs.
 
 Acceptance criteria:
@@ -431,6 +432,40 @@ Acceptance criteria:
   distinct from the R3 file-scope-creep incident, worth watching in future
   sessions with these NIM-routed aliases.
 - Commit: `51d48f7`.
+
+### Phase 3 - Safe generated file paths evidence
+
+- Date: 2026-09-06
+- Files changed: data_processor.py, pdf_generator.py, main.py,
+  test_data_processor.py, test_pdf_generator.py, test_main.py.
+- data_processor.py: generate_chart() writes to a UUID-suffixed temp file
+  in the same directory as the final output_path, then finalizes with
+  os.replace(). Cleans up the temp file on any exception before returning
+  None, preserving existing behavior.
+- pdf_generator.py: build_pdf() gained a new output_path parameter
+  (defaults to OUTPUT_PDF). Fixed a pre-existing bug where the output
+  directory was hardcoded to "output" instead of being derived from the
+  actual output path. Writes to a UUID-suffixed temp file, finalizes via
+  os.replace(), cleans up and re-raises on exception. Returns the final
+  output_path instead of the OUTPUT_PDF constant.
+- main.py: run_report() generates one run_id (timestamp + short uuid) per
+  execution and passes explicit, unique output_path values to both
+  generate_chart() and build_pdf(), preventing filename collisions between
+  overlapping process invocations.
+- Tests: added temp-file-safety and exception-cleanup coverage in
+  test_data_processor.py and test_pdf_generator.py. Updated test_main.py's
+  existing call-argument assertions to match the new output_path
+  parameter, since the production call signature legitimately changed.
+- Verification: py_compile clean; full suite 34/34 passed, 0 failed, 0
+  skipped; ruff check clean.
+- Review: performed manually (file-by-file diff review against the
+  approved design, plus independent terminal re-verification of all
+  validation commands) instead of via architecture-reviewer/code-reviewer,
+  due to process issues during the writer-agent stage (see SESSION_STATE.md
+  2026-09-06 entry for full detail).
+- Commit: `157e922`.
+
+Phase 3 is now complete.
 
 ## Phase 4 - CLI and local production readiness
 

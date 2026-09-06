@@ -89,7 +89,8 @@ def main():
     parser = argparse.ArgumentParser(description="Report Automator")
     parser.add_argument("--run-now",  action="store_true", help="Ejecutar inmediatamente")
     parser.add_argument("--schedule", choices=["daily", "weekly", "monthly"], help="Programar ejecución")
-    parser.add_argument("--dry-run", action="store_true", help="Ejecutar sin enviar correo (solo para pruebas)")
+    parser.add_argument("--dry-run", "--no-email", action="store_true", dest="dry_run",
+                     help="Ejecutar sin enviar correo (alias: --no-email)")
     args = parser.parse_args()
 
     # Validate configuration

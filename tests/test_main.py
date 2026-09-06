@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
 import main
 from result import RunResult, log_run_outcome
@@ -237,3 +238,27 @@ def test_run_report_dry_run_skips_email():
         output_path = kwargs['output_path']
         assert output_path.endswith('.pdf')
         assert 'report_' in output_path
+
+def test_no_email_flag_is_alias_for_dry_run():
+    # Create a fake RunResult for a successful dry-run
+    fake_result = RunResult(
+        pdf_generated=True,
+        pdf_path='fake_report.pdf',
+        chart_path='fake_chart.png',
+        email_sent=False,
+        email_skipped=True,
+        error=None
+    )
+
+    with patch('sys.argv', ['main.py', '--no-email']), \
+         patch('main.validate_config'), \
+         patch('main.run_report', return_value=fake_result) as mock_run, \
+         patch('main.log_run_outcome'):
+
+        with pytest.raises(SystemExit) as exc_info:
+            main.main()
+
+        # Assert run_report was called with dry_run=True
+        mock_run.assert_called_once_with(dry_run=True)
+        # Assert exit code is 0
+        assert exc_info.value.code == 0

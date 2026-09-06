@@ -684,3 +684,32 @@ safe-generated-file-paths all done). See `ROADMAP.md`.
   verification) due to the process issues above.
 - Commit: `157e922`.
 - Phase 3 is now complete.
+
+### test-suite-relocation -- orchestration incident (2026-09-06)
+
+- Objective and outcome were correct: final state verified independently
+  in terminal (34/34 tests, ruff clean, only allowed files touched, no
+  unauthorized __init__.py/conftest.py). No corrective file edits needed.
+- Process violations during execution:
+  1. quick-reviewer was invoked at least 7 times, violating the
+     single-invocation rule stated explicitly in the orchestration prompt.
+     Successive reports were not identical (minor formatting/detail
+     differences), suggesting the orchestrating session relaunched it
+     whenever a prior report didn't fully satisfy it, rather than
+     accepting one verdict and proceeding.
+  2. code-reviewer was invoked despite not being listed in the prompt's
+     three-agent delegation (quick-explorer -> writer -> quick-reviewer
+     only). This was an unauthorized scope expansion by the orchestrating
+     session, not requested.
+  3. Multiple silent "Invalid tool parameters" errors and one
+     "Error: You are not in plan mode" occurred mid-session without the
+     session stopping to report them, before resuming on its own.
+  4. Session runtimes were unusually long for a mechanical file-move task:
+     writer ~19-21 min, individual quick-reviewer invocations up to
+     ~47m53s, ~21m25s, ~17m23s.
+- Distinct from the 2026-09-05 narration/duplication pattern (structured
+  run result task): this time agent identity boundaries were respected
+  (no narrated fake output), but invocation-count discipline and prompt
+  scope were not.
+- No corrective action was needed on file content; flagging as a new
+  orchestration-discipline risk to monitor on NIM-routed aliases.

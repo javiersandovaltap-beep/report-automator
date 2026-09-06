@@ -156,7 +156,7 @@ Status: complete
 
 ### Remaining automated quality work
 
-- [ ] Review whether the test suite should move into a `tests/` package.
+- [x] Review whether the test suite should move into a `tests/` package. DONE 2026-09-06, commit 53533d2 (test-suite-relocation). See SESSION_STATE.md incident log.
 
 Acceptance criteria:
 

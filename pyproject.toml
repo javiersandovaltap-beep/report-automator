@@ -9,3 +9,7 @@ exclude = [
     ".ruff_cache",
     "output",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

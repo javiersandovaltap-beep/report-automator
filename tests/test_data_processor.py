@@ -1,10 +1,13 @@
 import os
 import tempfile
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from data_processor import generate_chart, generate_summary, load_data
+
+CSV_PATH = Path(__file__).parent / "test_no_numeric.csv"
 
 
 def test_generate_summary_with_numeric():
@@ -30,7 +33,7 @@ def test_generate_summary_with_numeric():
 
 def test_generate_summary_without_numeric():
     # Use the provided test_no_numeric.csv
-    df = pd.read_csv('test_no_numeric.csv')
+    df = pd.read_csv(CSV_PATH)
     summary = generate_summary(df)
     # Check that totals and averages are empty dicts
     assert summary['totals'] == {}
@@ -59,7 +62,7 @@ def test_generate_chart_with_numeric():
 
 def test_generate_chart_without_numeric():
     # Use the test_no_numeric.csv (no numeric columns)
-    df = pd.read_csv('test_no_numeric.csv')
+    df = pd.read_csv(CSV_PATH)
     result = generate_chart(df)
     # Should return None
     assert result is None
@@ -67,7 +70,7 @@ def test_generate_chart_without_numeric():
 # Additional test for load_data (optional, but good to have)
 def test_load_data_csv():
     # We can use the test_no_numeric.csv
-    df = load_data('test_no_numeric.csv')
+    df = load_data(str(CSV_PATH))
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 2
     assert list(df.columns) == ['name', 'city']

@@ -2,10 +2,12 @@
 
 > Single source of truth for project state. Any new AI coding session MUST read this file first.
 
-**Last updated:** 2026-09-06
+**Last updated:** 2026-09-07
 **Phase:** Phase 2 - Automated quality COMPLETE. Phase 3 - Domain robustness
-COMPLETE (R2, R3, structured run result + CLI exit codes, and
-safe-generated-file-paths all done). See `ROADMAP.md`.
+COMPLETE. Phase 4 - CLI and local production readiness IN PROGRESS
+(dry-run-flag, no-email-flag, and validate-config-command done; Task
+Scheduler docs, README execution docs, and overlap-guard remain open).
+See `ROADMAP.md`.
 
 ---
 
@@ -831,3 +833,77 @@ safe-generated-file-paths all done). See `ROADMAP.md`.
 - Distinct from the dry-run-flag incidents (repeated subagent
   relaunching / interruption): this is a planning-side syntax error,
   not an agent-discipline failure.
+
+### Phase 4 - validate-config-command evidence (2026-09-07)
+
+- Files changed: config.py, main.py, tests/test_config.py, tests/test_main.py.
+- config.py: extracted `check_schedule_time()` out of `validate_config()`
+  with identical logic and identical error message; `validate_config()`
+  (the pre-flight check that already runs on every invocation, main.py
+  line ~98) now simply calls `check_schedule_time()` and its external
+  behavior is unchanged, preserving the --dry-run-without-SMTP guarantee.
+  Added `check_data_file_exists()` (raises if DATA_FILE is missing) and
+  `check_email_config()` (raises listing any of EMAIL_SENDER,
+  EMAIL_PASSWORD, EMAIL_RECIPIENTS that are missing). Added
+  `check_full_config()`, which runs all three checks independently and
+  aggregates every failure into a single ValueError (newline-joined)
+  instead of failing on the first one -- used exclusively by the new CLI
+  command, never by the pre-flight `validate_config()`.
+- main.py: added `--validate-config` argparse flag, handled before the
+  existing pre-flight `validate_config()` call and before any
+  --run-now/--schedule branching. On success, logs a confirmation message
+  and exits 0; on ValueError, logs the aggregated message and exits 1;
+  either way, returns without falling through to run_report() or the
+  scheduler.
+- tests/test_config.py: added 8 tests covering check_data_file_exists,
+  check_email_config (each missing var individually, and all-present),
+  and check_full_config (multi-failure aggregation, all-valid). Existing
+  test_validate_config_* tests were not modified.
+- tests/test_main.py: added 2 CLI-level tests (--validate-config success
+  and failure paths), following the mocked-sys.argv pattern established
+  by test_no_email_flag_is_alias_for_dry_run.
+- Verification: full suite 46/46 passed, 0 failed, 0 skipped; `ruff
+  check .` clean. Independently re-verified by the user in terminal
+  (Git Bash), separate from any agent report.
+- Review chain: no architecture-reviewer (no boundary/schema change) or
+  code-reviewer CLI session was used, due to the writer non-invocation
+  incident below. A manual code-review audit was performed in chat
+  instead, using the same [Files Changed]/[Logic Altered]/[Tests
+  Run]/[Verification Method]/[Residual Risks] format required by
+  CLAUDE.md, grounded in the user's independently re-run pytest/ruff
+  output and a full `git diff` the user pasted and the planning
+  assistant reviewed line by line.
+- Commit: `9ec68e7`.
+
+### validate-config-command -- writer non-invocation incident (2026-09-07)
+
+- The orchestration prompt named `writer` as the single subagent to
+  invoke for this task. Instead, the main/orchestrating session
+  performed the entire implementation directly, with no subagent
+  invocation visible in the session output (no "Agent finished"
+  indicator, per the user's confirmation of what that normally looks
+  like in this CLI). This is a new failure mode, distinct from prior
+  incidents: earlier incidents involved a named subagent being
+  relaunched too many times or being interrupted mid-run; this is the
+  first case of the named subagent not being invoked at all.
+- Separately, the same session attempted to create a file outside the
+  explicit ALLOWED FILES list -- an unrequested markdown/report file
+  containing a narrative summary in the [Logic Altered]-style format
+  that CLAUDE.md reserves for reviewer output, not writer output. The
+  user detected this in progress and stopped it before the file was
+  written; confirmed via `git status` showing no untracked files.
+- The implementation itself (config.py, main.py, tests) matched the
+  approved design with no unrequested deviations once reviewed via
+  `git diff`, and validation (pytest -q: 46 passed; ruff check .: All
+  checks passed) was independently re-run and confirmed by the user in
+  terminal -- the incident is a process/orchestration failure, not a
+  code-correctness failure.
+- Corrective action for future prompts on this class of task: add an
+  explicit standalone uppercase line, `DO NOT CREATE ANY FILE OUTSIDE
+  ALLOWED FILES, INCLUDING MARKDOWN, SUMMARY, OR REPORT FILES`, since
+  listing allowed files alone did not prevent this. Also move any
+  "report the verbatim output" instruction out of the end of the
+  prompt (where it can be treated as just another step in a list) and
+  into the standalone uppercase constraint block at the top, alongside
+  the other behavioral constraints.
+

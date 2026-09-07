@@ -142,6 +142,144 @@ def test_validate_config_minute_out_of_range():
             config.validate_config()
 
 
+def test_check_data_file_exists_missing():
+    """Test that check_data_file_exists() raises ValueError when file is missing."""
+    with patch.dict(os.environ, {'DATA_FILE': 'nonexistent/file.csv'}):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        with pytest.raises(ValueError, match="DATA_FILE not found"):
+            config.check_data_file_exists()
+
+
+def test_check_data_file_exists_present(tmp_path):
+    """Test that check_data_file_exists() passes when file exists."""
+    # Create a temporary file
+    test_file = tmp_path / "test_data.csv"
+    test_file.write_text("col1,col2\n1,2\n")
+
+    with patch.dict(os.environ, {'DATA_FILE': str(test_file)}):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        # Should not raise
+        config.check_data_file_exists()
+
+
+def test_check_email_config_missing_sender():
+    """Test that check_email_config() raises ValueError when EMAIL_SENDER is missing."""
+    with patch.dict(os.environ, {
+        'EMAIL_SENDER': '',
+        'EMAIL_PASSWORD': 'password',
+        'EMAIL_RECIPIENTS': 'test@example.com'
+    }):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        with pytest.raises(ValueError, match="Missing required email configuration: EMAIL_SENDER"):
+            config.check_email_config()
+
+
+def test_check_email_config_missing_password():
+    """Test that check_email_config() raises ValueError when EMAIL_PASSWORD is missing."""
+    with patch.dict(os.environ, {
+        'EMAIL_SENDER': 'sender@example.com',
+        'EMAIL_PASSWORD': '',
+        'EMAIL_RECIPIENTS': 'test@example.com'
+    }):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        with pytest.raises(ValueError, match="Missing required email configuration: EMAIL_PASSWORD"):
+            config.check_email_config()
+
+
+def test_check_email_config_missing_recipients():
+    """Test that check_email_config() raises ValueError when EMAIL_RECIPIENTS is missing."""
+    with patch.dict(os.environ, {
+        'EMAIL_SENDER': 'sender@example.com',
+        'EMAIL_PASSWORD': 'password',
+        'EMAIL_RECIPIENTS': ''
+    }):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        with pytest.raises(ValueError, match="Missing required email configuration: EMAIL_RECIPIENTS"):
+            config.check_email_config()
+
+
+def test_check_email_config_all_present():
+    """Test that check_email_config() passes when all email config is present."""
+    with patch.dict(os.environ, {
+        'EMAIL_SENDER': 'sender@example.com',
+        'EMAIL_PASSWORD': 'password',
+        'EMAIL_RECIPIENTS': 'user1@example.com,user2@example.com'
+    }):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        # Should not raise
+        config.check_email_config()
+
+
+def test_check_full_config_multiple_failures():
+    """Test that check_full_config() aggregates multiple failures."""
+    with patch.dict(os.environ, {
+        'SCHEDULE_TIME': 'invalid-time',
+        'DATA_FILE': 'nonexistent/file.csv',
+        'EMAIL_SENDER': '',
+        'EMAIL_PASSWORD': '',
+        'EMAIL_RECIPIENTS': ''
+    }):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        with pytest.raises(ValueError) as exc_info:
+            config.check_full_config()
+
+        error_message = str(exc_info.value)
+        # Check that all error messages are present
+        assert "Invalid SCHEDULE_TIME format" in error_message
+        assert "DATA_FILE not found" in error_message
+        assert "Missing required email configuration: EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECIPIENTS" in error_message
+
+
+def test_check_full_config_all_valid(tmp_path):
+    """Test that check_full_config() passes when all configuration is valid."""
+    # Create a temporary data file
+    test_file = tmp_path / "test_data.csv"
+    test_file.write_text("col1,col2\n1,2\n")
+
+    with patch.dict(os.environ, {
+        'SCHEDULE_TIME': '08:00',
+        'DATA_FILE': str(test_file),
+        'EMAIL_SENDER': 'sender@example.com',
+        'EMAIL_PASSWORD': 'password',
+        'EMAIL_RECIPIENTS': 'user1@example.com,user2@example.com'
+    }):
+        import importlib
+
+        import config
+        importlib.reload(config)
+
+        # Should not raise
+        config.check_full_config()
+
+
 # Reload config with original environment to avoid affecting other tests
 import importlib
 

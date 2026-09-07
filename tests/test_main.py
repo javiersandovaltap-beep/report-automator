@@ -262,3 +262,43 @@ def test_no_email_flag_is_alias_for_dry_run():
         mock_run.assert_called_once_with(dry_run=True)
         # Assert exit code is 0
         assert exc_info.value.code == 0
+
+
+def test_validate_config_success():
+    """Test that --validate-config with valid configuration exits with code 0 and doesn't call run_report."""
+    with patch('sys.argv', ['main.py', '--validate-config']), \
+         patch('main.check_full_config') as mock_check, \
+         patch('main.run_report') as mock_run, \
+         patch('main.logger') as mock_logger:
+
+        with pytest.raises(SystemExit) as exc_info:
+            main.main()
+
+        # Assert check_full_config was called
+        mock_check.assert_called_once()
+        # Assert run_report was NOT called
+        mock_run.assert_not_called()
+        # Assert success message was logged
+        mock_logger.info.assert_called_with("✅ Configuration is valid.")
+        # Assert exit code is 0
+        assert exc_info.value.code == 0
+
+
+def test_validate_config_failure():
+    """Test that --validate-config with invalid configuration exits with code 1 and doesn't call run_report."""
+    with patch('sys.argv', ['main.py', '--validate-config']), \
+         patch('main.check_full_config', side_effect=ValueError("Invalid configuration")) as mock_check, \
+         patch('main.run_report') as mock_run, \
+         patch('main.logger') as mock_logger:
+
+        with pytest.raises(SystemExit) as exc_info:
+            main.main()
+
+        # Assert check_full_config was called
+        mock_check.assert_called_once()
+        # Assert run_report was NOT called
+        mock_run.assert_not_called()
+        # Assert error message was logged
+        mock_logger.error.assert_called_with("Invalid configuration")
+        # Assert exit code is 1
+        assert exc_info.value.code == 1

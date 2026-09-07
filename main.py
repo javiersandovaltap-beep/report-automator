@@ -8,7 +8,14 @@ from datetime import datetime
 
 import schedule
 
-from config import CHART_OUTPUT_DIR, DATA_FILE, OUTPUT_PDF, SCHEDULE_TIME, validate_config
+from config import (
+    CHART_OUTPUT_DIR,
+    DATA_FILE,
+    OUTPUT_PDF,
+    SCHEDULE_TIME,
+    check_full_config,
+    validate_config,
+)
 from data_processor import generate_chart, generate_summary, load_data
 from email_sender import send_report
 from pdf_generator import build_pdf
@@ -91,7 +98,18 @@ def main():
     parser.add_argument("--schedule", choices=["daily", "weekly", "monthly"], help="Programar ejecución")
     parser.add_argument("--dry-run", "--no-email", action="store_true", dest="dry_run",
                      help="Ejecutar sin enviar correo (alias: --no-email)")
+    parser.add_argument("--validate-config", action="store_true", help="Check .env configuration (schedule, data file, email) without running the pipeline")
     args = parser.parse_args()
+
+    # Handle --validate-config flag
+    if args.validate_config:
+        try:
+            check_full_config()
+            logger.info("✅ Configuration is valid.")
+            sys.exit(0)
+        except ValueError as e:
+            logger.error(str(e))
+            sys.exit(1)
 
     # Validate configuration
     try:

@@ -781,3 +781,53 @@ safe-generated-file-paths all done). See `ROADMAP.md`.
   2026-09-05 narration/duplication incident: this is the first case of
   an orchestrating session attempting active interruption of a
   backgrounded subagent, not just relaunching or narrating over it.
+
+### Phase 4 - no-email-flag evidence (2026-09-06)
+
+- Files changed: main.py, tests/test_main.py.
+- main.py: single-line change to the existing `--dry-run` argparse
+  entry, adding `--no-email` as a second option string mapped to the
+  same `dest="dry_run"`. No new semantics introduced -- --dry-run
+  already implemented the full intended "run pipeline, skip email
+  only" behavior (chart + PDF generated to disk, only send_report()
+  skipped), confirmed via evidence review of run_report(), the
+  argparse block, and existing tests before any design was proposed.
+- tests/test_main.py: added test_no_email_flag_is_alias_for_dry_run,
+  the first CLI-level test in the suite (patches sys.argv,
+  validate_config, run_report, log_run_outcome; asserts main() calls
+  run_report(dry_run=True) and exits with SystemExit code 0 when
+  invoked with --no-email). The RunResult fake instance matches the
+  live dataclass signature (pdf_generated, pdf_path, chart_path,
+  email_sent, email_skipped, error), verified against result.py
+  before writing the test.
+- Verification: full suite 36/36 passed, ruff check clean;
+  `python main.py --help` confirmed a single combined entry
+  `--dry-run, --no-email`. All verified independently by the user in
+  terminal, not from an agent report.
+- Review chain: none -- task was scoped down to a direct, single-turn
+  Claude Code invocation with no subagents (explorer/writer/reviewer),
+  given the change was mechanical (1-line production diff + 1 new
+  test) and the prior dry-run-flag task showed repeated
+  invocation-discipline failures on reviewer-stage subagents for
+  similarly small tasks. Manual review was performed in chat instead,
+  cross-checked against verbatim git diff and test/lint output.
+- Commit: `04ecd49`.
+
+### no-email-flag -- orchestration prompt shell-syntax incident (2026-09-06)
+
+- The first orchestration prompt sent to Claude Code CLI instructed
+  Step 3 (validation) using Git Bash venv-activation syntax
+  (`source .venv/Scripts/activate`) instead of the project's
+  PowerShell convention (`.venv\Scripts\Activate.ps1`), which the CLI
+  runs natively for this project. This caused the CLI's own
+  validation step to fail before pytest/ruff could run.
+- This is an error in the planning assistant's prompt, not a Claude
+  Code execution failure: the code and test edits themselves
+  (main.py, tests/test_main.py) were correct on first pass, confirmed
+  by manual `git diff` review before any validation was attempted.
+- No CLI re-invocation was needed. Validation (pytest -v: 36 passed;
+  ruff check .: All checks passed) was completed manually via the
+  user's Git Bash terminal instead.
+- Distinct from the dry-run-flag incidents (repeated subagent
+  relaunching / interruption): this is a planning-side syntax error,
+  not an agent-discipline failure.

@@ -474,8 +474,16 @@ Status: pending
 - [x] Add `--dry-run` (build the report but skip email delivery). DONE 2026-09-06, commit 6e3710d (dry-run-flag). See SESSION_STATE.md incident log for the code-reviewer orchestration failure on this item.
 - [x] Add `--no-email` as an explicit alternative/alias. DONE 2026-09-06, commit 04ecd49 (no-email-flag). Implemented as a literal argparse alias (dest=dry_run); see SESSION_STATE.md for evidence and the orchestration shell-syntax incident.
 - [x] Add a `validate-config` command that checks .env without running the pipeline. DONE 2026-09-07, commit 9ec68e7 (validate-config-command). See SESSION_STATE.md for evidence and the writer non-invocation incident.
-- [ ] Document Windows Task Scheduler as an alternative to the in-process
-      `schedule` loop for unattended execution.
+- [x] Document Windows Task Scheduler as an alternative to the in-process
+      `schedule` loop for unattended execution. DONE 2026-09-08, commit
+      2050131 (task-scheduler-docs). See SESSION_STATE.md for evidence and
+      the heredoc/path-resolution incident.
+- [ ] Fix logger emoji encoding bug in main.py: the three scheduling
+      logger.info() confirmation messages (daily/weekly/monthly) contain
+      replacement-character bytes instead of the intended emoji, confirmed
+      via `grep -c $'\xef\xbf\xbd' main.py` returning 3. BLOCKS the
+      remaining Phase 4 items below until resolved. See SESSION_STATE.md
+      (task-scheduler-docs session) for evidence.
 - [ ] Document normal execution, dry-run execution, and scheduled execution
       in README.md.
 - [ ] Verify behavior when two runs could overlap (basic guard or documented

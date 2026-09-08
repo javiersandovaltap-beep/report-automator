@@ -907,3 +907,55 @@ See `ROADMAP.md`.
   into the standalone uppercase constraint block at the top, alongside
   the other behavioral constraints.
 
+
+### task-scheduler-docs (2026-09-08)
+
+- Documented Windows Task Scheduler as an alternative to the in-process
+  `--schedule` loop, plus the previously-undocumented `monthly` schedule
+  mode and the confirmed resilience of the `while True` scheduling loop
+  (run_report() catches all exceptions internally, so a failed run never
+  propagates and the loop continues to the next scheduled cycle -- no
+  automatic retry of the failed run).
+- Evidence used: `grep -n "schedule" main.py`, `sed -n '1,95p' main.py` and
+  `sed -n '90,160p' main.py` (full run_report()/main() scheduling block),
+  `sed` ranges of README.md around existing scheduling mentions, `find`
+  confirming no `.bat`/`.ps1` startup script exists in the repo, and
+  `python main.py --help` confirming the real CLI flags.
+- Also removed a stray `[file:153]` citation artifact left in README.md's
+  default-execution section, and fixed the "Funcionalidades actuales" list
+  to mention monthly scheduling alongside daily/weekly.
+- Commit: `2050131`.
+- Process incident: a Python patch script written via heredoc, referencing
+  a large content file under `/tmp/...`, failed with FileNotFoundError when
+  run from Git Bash. Root cause confirmed: `/tmp` is a path MSYS/Git Bash
+  resolves internally, but the native Windows Python interpreter cannot
+  resolve that same string when it appears as a literal path *inside*
+  Python source, even though invoking the `.py` file itself from bash
+  works fine (that path IS translated at invocation time). Fix: avoid
+  `/tmp` entirely for any path referenced inside script content; use paths
+  relative to the project directory instead so both Git Bash and native
+  Windows Python resolve them identically. Corrective action for future
+  prompts with long/multi-line content: base64-encode the content as a
+  single unbroken line to avoid terminal paste corruption (bracketed
+  paste, line wrapping), decode it into a relative-path file, and have any
+  Python script read that file rather than embedding long content inline
+  in the heredoc.
+
+### Bug identified: logger emoji encoding in main.py scheduling messages
+
+- During the task-scheduler-docs session, `grep -c $'\xef\xbf\xbd' main.py`
+  returned 3, confirming (not merely suspecting) that the three
+  `logger.info(f"...")` scheduling confirmation messages (daily, weekly,
+  monthly branches) contain literal Unicode replacement-character bytes
+  in the source file itself, rather than a Git Bash/MINGW64 terminal
+  rendering artifact. The intended content was an emoji (clock symbol)
+  that appears to have been saved with incorrect encoding at some earlier
+  point.
+- Explicitly out of scope for task-scheduler-docs (a documentation-only
+  item) -- the README documents the log confirmation behavior in prose
+  without transcribing the broken string verbatim, to avoid documenting a
+  bug as if it were intended behavior.
+- Marked as a blocking item in ROADMAP.md (`fix-logger-emoji-encoding`).
+  Must be resolved in its own new thread, with fresh evidence re-requested
+  (per the standing rule), before proceeding to Phase 4 item 5 (README
+  execution-modes documentation).

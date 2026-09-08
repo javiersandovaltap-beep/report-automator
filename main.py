@@ -127,7 +127,7 @@ def main():
             result = run_report(dry_run=args.dry_run)
             log_run_outcome(result, logger)
         schedule.every().day.at(SCHEDULE_TIME).do(job)
-        logger.info(f"��⏰ Programado: todos los días a las {SCHEDULE_TIME}")
+        logger.info(f"⏰ Programado: todos los días a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)
@@ -136,7 +136,7 @@ def main():
             result = run_report(dry_run=args.dry_run)
             log_run_outcome(result, logger)
         schedule.every().monday.at(SCHEDULE_TIME).do(job)
-        logger.info(f"��⏰ Programado: todos los lunes a las {SCHEDULE_TIME}")
+        logger.info(f"⏰ Programado: todos los lunes a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)
@@ -148,7 +148,7 @@ def main():
                 result = run_report(dry_run=args.dry_run)
                 log_run_outcome(result, logger)
         schedule.every().day.at(SCHEDULE_TIME).do(job)
-        logger.info(f"��������������⏰ Programado: primer día de cada mes a las {SCHEDULE_TIME}")
+        logger.info(f"⏰ Programado: primer día de cada mes a las {SCHEDULE_TIME}")
         while True:
             schedule.run_pending()
             time.sleep(60)

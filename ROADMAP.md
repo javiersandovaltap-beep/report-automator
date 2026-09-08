@@ -478,12 +478,15 @@ Status: pending
       `schedule` loop for unattended execution. DONE 2026-09-08, commit
       2050131 (task-scheduler-docs). See SESSION_STATE.md for evidence and
       the heredoc/path-resolution incident.
-- [ ] Fix logger emoji encoding bug in main.py: the three scheduling
-      logger.info() confirmation messages (daily/weekly/monthly) contain
+- [x] Fix logger emoji encoding bug in main.py: the three scheduling
+      logger.info() confirmation messages (daily/weekly/monthly) contained
       replacement-character bytes instead of the intended emoji, confirmed
-      via `grep -c $'\xef\xbf\xbd' main.py` returning 3. BLOCKS the
-      remaining Phase 4 items below until resolved. See SESSION_STATE.md
-      (task-scheduler-docs session) for evidence.
+      via `grep -c $'\xef\xbf\xbd' main.py` returning 3. DONE 2026-09-08,
+      commit d472a87 (fix-logger-emoji-encoding). Git history confirmed
+      no emoji preceded the clock symbol prior to corruption, so the
+      corrupted bytes were removed rather than replaced with a guessed
+      character. See SESSION_STATE.md for evidence and resolution
+      details.
 - [ ] Document normal execution, dry-run execution, and scheduled execution
       in README.md.
 - [ ] Verify behavior when two runs could overlap (basic guard or documented

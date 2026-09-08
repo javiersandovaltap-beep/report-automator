@@ -959,3 +959,49 @@ See `ROADMAP.md`.
   Must be resolved in its own new thread, with fresh evidence re-requested
   (per the standing rule), before proceeding to Phase 4 item 5 (README
   execution-modes documentation).
+
+
+### 2026-09-08 - Phase 4 - fix-logger-emoji-encoding (resolution)
+
+- Fresh evidence gathered per standing rule: `grep -n` located the 3
+  corrupted lines (130, 139, 151); `xxd` hex dumps of each line showed
+  daily/weekly contained 2x U+FFFD (EF BF BD) before an intact clock
+  emoji (E2 8F B0), while monthly contained 14x U+FFFD before the same
+  intact clock emoji -- confirming the two patterns were not identical
+  and could not be assumed to share one root cause without checking.
+- `grep -o | wc -l` confirmed 18 total replacement-byte occurrences,
+  all contained within the 3 known lines (2+2+14). `grep -rn` across
+  all `.py` files in the project confirmed no occurrences outside
+  main.py's scheduling block.
+- git blame identified a single origin commit (e209fa87) for all three
+  lines, but the diff showed the corruption already present on both
+  sides of that commit's change (logging.info -> logger.info), so the
+  investigation continued further back.
+- git log -S pickaxe search on the daily/weekly message text found the
+  original pre-logging `print()` statements: `print(f"⏰ Programado:
+  todos los d\u00edas a las {SCHEDULE_TIME}")`, with no emoji preceding
+  the clock symbol. This is direct historical evidence that the
+  intended message never had a second emoji before the clock -- the
+  clock alone was correct from the start, and the replacement bytes
+  were introduced later (found already corrupted, no clean commit for
+  that introduction was located, likely an editor encoding issue at
+  the time the print()->logging.info() migration happened rather than
+  a bug in the code path itself).
+- The monthly message's origin commit (3f12023) showed it was added
+  already corrupted (14x U+FFFD) with no prior clean version. Same
+  root-cause pattern accepted as sufficient given the daily/weekly
+  precedent, without further backward search.
+- Decision: remove the corrupted bytes entirely rather than guess a
+  replacement emoji, since history confirmed none was ever functional.
+  Applied via a Python script with regex `(\xef\xbf\xbd)+\xe2\x8f\xb0`
+  matched against raw bytes, asserting exactly 3 matches before and
+  after substitution (chosen over sed given raw non-ASCII byte
+  manipulation, consistent with the standing doc-editing tool-choice
+  rule).
+- Verification: `grep -c $'\xef\xbf\xbd' main.py` returned 0 post-fix;
+  all three log lines visually confirmed clean (`⏰ Programado: ...`
+  with no leading garbage). Full suite re-run: 46/46 passed, confirming
+  no test asserted on the corrupted log content.
+- Commit: d472a87 (fix-logger-emoji-encoding). Item closed; the
+  blocking status on the remaining Phase 4 items (README
+  execution-modes documentation, overlapping-run guard) is lifted.

@@ -47,7 +47,7 @@ Este proyecto reduce esa fricción al encapsular el proceso en una pipeline repr
   - tabla top 10
 - Intento de envío del reporte por correo
 - Ejecución inmediata
-- Ejecución programada diaria o semanal
+- Ejecución programada diaria, semanal o mensual
 - Configuración mediante variables de entorno
 - Tolerancia a datasets sin columnas numéricas
 
@@ -190,7 +190,7 @@ python main.py --run-now
 
 ### Ejecutar con comportamiento por defecto
 
-Si no se pasa ningún argumento, el programa también ejecuta una corrida inmediata. [file:153]
+Si no se pasa ningún argumento, el programa también ejecuta una corrida inmediata.
 
 ```bash
 python main.py
@@ -207,6 +207,36 @@ python main.py --schedule daily
 ```bash
 python main.py --schedule weekly
 ```
+
+### Programar ejecucion mensual
+
+```bash
+python main.py --schedule monthly
+```
+
+Nota: la libreria schedule no soporta un modo mensual nativo. La implementacion registra un job diario a SCHEDULE_TIME y, dentro del job, verifica si el dia actual es 1 antes de ejecutar el reporte. Esto implica que si el proceso no esta corriendo exactamente en SCHEDULE_TIME del dia 1 (por ejemplo, la PC estaba apagada), ese mes se salta sin mecanismo de recuperacion (catch-up).
+
+### Comportamiento del loop de scheduling ante fallos
+
+En los tres modos (daily, weekly, monthly), cada ejecucion programada esta protegida por el manejo de errores interno de run_report(): cualquier excepcion durante la generacion del reporte se captura y se registra en el log, sin interrumpir el proceso de scheduling. El loop while True sigue activo despues de una corrida fallida y ejecutara normalmente la siguiente corrida programada. No hay reintento automatico de la corrida que fallo, solo continuidad hasta el proximo ciclo del schedule.
+
+Al arrancar cualquiera de los tres modos, el proceso confirma por log el modo activo y la hora configurada. Nota interna: los mensajes de confirmacion pueden mostrar un caracter mal codificado en la consola en el estado actual del repositorio; este problema de encoding esta identificado como item separado, pendiente de correccion.
+
+## Alternativa: Windows Task Scheduler
+
+El loop --schedule mantiene un proceso Python corriendo en primer plano de forma indefinida. Como alternativa nativa de Windows, se puede usar el Programador de tareas (Task Scheduler) para invocar una corrida puntual sin mantener un proceso en loop.
+
+El proyecto no incluye actualmente ningun script .bat o .ps1 propio para este fin, por lo que la tarea programada debe invocar directamente al interprete de Python del entorno virtual:
+
+```
+Programa/script: C:/ruta/al/proyecto/.venv/Scripts/python.exe
+Argumentos: main.py --run-now
+Iniciar en: C:/ruta/al/proyecto
+```
+
+Para probar la configuracion sin enviar correo real, usar --dry-run en vez de --run-now en los argumentos de la tarea programada.
+
+Con este enfoque, la frecuencia (diaria, semanal, mensual, o cualquier otra) la define el propio Task Scheduler de Windows, y el proceso Python se ejecuta y termina en cada corrida, a diferencia del modo --schedule, que depende de un proceso Python persistente.
 
 ## Comportamiento validado manualmente
 

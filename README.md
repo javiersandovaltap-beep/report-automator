@@ -196,6 +196,19 @@ Si no se pasa ningún argumento, el programa también ejecuta una corrida inmedi
 python main.py
 ```
 
+### Ejecutar en modo dry-run (sin envío de correo)
+
+El flag `--dry-run` (alias `--no-email`) ejecuta el flujo completo — carga de datos, resumen, gráfico y PDF — mientras omite el paso de envío de correo. Es combinable tanto con una corrida inmediata como con cualquiera de los tres modos programados (`--schedule daily|weekly|monthly`).
+
+```bash
+python main.py --run-now --dry-run
+python main.py --schedule daily --dry-run
+```
+
+En este modo, `email_sent` queda en `False` y `email_skipped` en `True`; el código de salida es `0`, igual que en una corrida exitosa con envío (ver Códigos de salida más abajo).
+
+Este mismo flag es el recomendado para probar una tarea de Windows Task Scheduler antes de dejarla en producción — ver [Alternativa: Windows Task Scheduler](#alternativa-windows-task-scheduler).
+
 ### Programar ejecución diaria
 
 ```bash
@@ -216,11 +229,21 @@ python main.py --schedule monthly
 
 Nota: la libreria schedule no soporta un modo mensual nativo. La implementacion registra un job diario a SCHEDULE_TIME y, dentro del job, verifica si el dia actual es 1 antes de ejecutar el reporte. Esto implica que si el proceso no esta corriendo exactamente en SCHEDULE_TIME del dia 1 (por ejemplo, la PC estaba apagada), ese mes se salta sin mecanismo de recuperacion (catch-up).
 
+### Códigos de salida
+
+Tanto una corrida inmediata (`--run-now` o sin argumentos) como cada ejecución dentro de un modo programado devuelven uno de estos códigos:
+
+| Código | Significado |
+|---|---|
+| `0` | PDF generado y correo enviado, o `--dry-run` (envío omitido intencionalmente) |
+| `1` | Falló la generación del PDF |
+| `2` | PDF generado pero el envío de correo falló (y no era `--dry-run`) |
+
 ### Comportamiento del loop de scheduling ante fallos
 
 En los tres modos (daily, weekly, monthly), cada ejecucion programada esta protegida por el manejo de errores interno de run_report(): cualquier excepcion durante la generacion del reporte se captura y se registra en el log, sin interrumpir el proceso de scheduling. El loop while True sigue activo despues de una corrida fallida y ejecutara normalmente la siguiente corrida programada. No hay reintento automatico de la corrida que fallo, solo continuidad hasta el proximo ciclo del schedule.
 
-Al arrancar cualquiera de los tres modos, el proceso confirma por log el modo activo y la hora configurada. Nota interna: los mensajes de confirmacion pueden mostrar un caracter mal codificado en la consola en el estado actual del repositorio; este problema de encoding esta identificado como item separado, pendiente de correccion.
+Al arrancar cualquiera de los tres modos, el proceso confirma por log el modo activo y la hora configurada.
 
 ## Alternativa: Windows Task Scheduler
 

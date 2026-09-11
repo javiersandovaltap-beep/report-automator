@@ -57,3 +57,8 @@ output/
 # Archivos temporales de pruebas manuales
 # =========================
 test_numeric.csv
+# =========================
+# Documentos internos de continuidad IA (Claude Code)
+# No forman parte del repo público
+# =========================
+.internal/

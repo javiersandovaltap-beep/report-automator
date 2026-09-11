@@ -489,7 +489,7 @@ Status: pending
       details.
 - [ ] Document normal execution, dry-run execution, and scheduled execution
       in README.md.
-- [ ] Verify behavior when two runs could overlap (basic guard or documented
+- [x] Verify behavior when two runs could overlap (basic guard or documented
       limitation).
 
 Acceptance criteria:

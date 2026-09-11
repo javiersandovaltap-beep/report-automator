@@ -1005,3 +1005,64 @@ See `ROADMAP.md`.
 - Commit: d472a87 (fix-logger-emoji-encoding). Item closed; the
   blocking status on the remaining Phase 4 items (README
   execution-modes documentation, overlapping-run guard) is lifted.
+
+
+## Overlapping-run guard (last Phase 4 backlog item)
+
+- Task: prevent two concurrent run_report() executions (e.g. two manual
+  --run-now processes, two --schedule daily processes started by mistake,
+  or Task Scheduler overlapping the internal schedule loop) from both
+  completing the pipeline and sending duplicate emails to the same
+  recipients. Phase 3's UUID-suffixed output paths already prevented file
+  collisions but did not address duplicate email sends.
+- Evidence gathered first: confirmed no existing lock/pidfile/mutex
+  mechanism in main.py; confirmed generate_chart()/build_pdf() already
+  write to UUID temp files with os.replace() (Phase 3, unrelated to this
+  gap); confirmed email_sender.py opens an independent SMTP_SSL connection
+  per call with no shared state; confirmed no test calls run_report() more
+  than once per process, so a lock scoped inside run_report() could not
+  break existing tests.
+- Design approved: pidfile-based lock in a new lock.py, using
+  os.open(path, O_CREAT | O_EXCL | O_WRONLY) for atomic creation. Simple
+  lock, no stale-lock detection (accepted trade-off: a killed process
+  leaves an orphaned lock file requiring manual removal).
+- First CLI orchestration attempt did not invoke @writer as a background
+  subagent -- the orchestrating session performed all file edits directly,
+  created an out-of-scope test_sample.py, and left two other stray files
+  (a re-run of an already-closed fix_logger_emoji.py script, and a
+  self-made backup tests/test_main_original.py). Working-tree diff
+  confirmed the final state of config.py/main.py/result.py/
+  tests/test_main.py matched the approved design despite the churn; the
+  three stray files were removed manually.
+- ruff check . found 15 lint errors in the first implementation (unused
+  pass, import ordering, unused exception binding, unused test variables,
+  nested with statements). A second CLI session, with an explicit
+  instruction forbidding direct Write/Edit and requiring delegation to
+  @writer, fixed all 15 without behavior changes; verified via git diff
+  line-by-line against the fix list. quick-reviewer failed repeatedly
+  ("Invalid tool parameters") and was abandoned per the documented
+  fallback -- review was completed manually instead.
+- architecture-reviewer failed with a NIM 429 rate-limit error on Kimi K3
+  and was not relaunched. Fallback manual review (against the same six
+  review points that would have been given to the subagent) found one
+  real issue: LOCK_FILE_PATH's default was a relative path
+  ("report_automator.lock"), meaning the lock file resolves against the
+  process's working directory at launch. Two processes launched from
+  different working directories (e.g. a manual run vs. a Task Scheduler
+  task with a different "Start in" directory) would each create a lock
+  in a different location, silently defeating the mutual-exclusion
+  mechanism with no visible error.
+- Fix applied: config.py now wraps LOCK_FILE_PATH in os.path.abspath().
+  Contradiction check confirmed safe before sending: all tests patch
+  main.LOCK_FILE_PATH directly, none depend on config.py's default
+  computation. A second quick-reviewer invocation also failed to
+  complete (interrupted); working-tree diff plus file mtimes confirmed
+  only config.py's single line changed in that session, and that
+  main.py/result.py/tests/test_main.py's larger diffs were leftover
+  uncommitted work from the earlier sessions, not new changes.
+- Final code-reviewer audit ran cleanly (no relaunch needed): 49/49 tests
+  passed, ruff clean, py_compile clean on all four changed files.
+  Verdict: APPROVE FOR COMMIT. Residual risk noted (stale lock on
+  SIGKILL) matches the already-accepted trade-off.
+- Commit: `d698d66` (overlapping-run guard). Item closed. Phase 4 is
+  now fully complete (6/6 items); cloud prep begins next.

@@ -8,6 +8,7 @@ class RunResult:
     chart_path: str | None
     email_sent: bool
     email_skipped: bool = False
+    lock_skipped: bool = False
     error: str | None = None
 
 

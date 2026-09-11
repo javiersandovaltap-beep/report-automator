@@ -15,6 +15,7 @@ OUTPUT_PDF       = os.getenv("OUTPUT_PDF", "output/report.pdf")
 SCHEDULE_TIME    = os.getenv("SCHEDULE_TIME", "08:00")
 SCHEDULE_FREQUENCY = os.getenv("SCHEDULE_FREQUENCY", "daily")
 CHART_OUTPUT_DIR   = os.getenv("CHART_OUTPUT_DIR", "output")
+LOCK_FILE_PATH   = os.path.abspath(os.getenv("LOCK_FILE_PATH", "report_automator.lock"))
 
 
 def check_schedule_time():

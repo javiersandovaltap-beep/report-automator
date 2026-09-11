@@ -11,6 +11,7 @@ import schedule
 from config import (
     CHART_OUTPUT_DIR,
     DATA_FILE,
+    LOCK_FILE_PATH,
     OUTPUT_PDF,
     SCHEDULE_TIME,
     check_full_config,
@@ -18,6 +19,7 @@ from config import (
 )
 from data_processor import generate_chart, generate_summary, load_data
 from email_sender import send_report
+from lock import LockAcquisitionError, acquire_lock, release_lock
 from pdf_generator import build_pdf
 from result import RunResult, log_run_outcome
 
@@ -32,6 +34,23 @@ logging.basicConfig(
 
 
 def run_report(dry_run: bool = False):
+    # Attempt to acquire lock as the very first action
+    lock_fd = None
+    try:
+        lock_fd = acquire_lock(LOCK_FILE_PATH)
+    except LockAcquisitionError:
+        logger.warning("Ya hay una ejecución en curso. Abortando esta corrida.")
+        return RunResult(
+            pdf_generated=False,
+            pdf_path=None,
+            chart_path=None,
+            email_sent=False,
+            email_skipped=False,
+            lock_skipped=True,
+            error=None
+        )
+
+    # Lock acquired successfully, now run the pipeline with guaranteed cleanup
     logger.info("Iniciando generación de reporte...")
     chart = None
     pdf = None
@@ -78,6 +97,7 @@ def run_report(dry_run: bool = False):
             chart_path=chart,
             email_sent=email_sent,
             email_skipped=email_skipped,
+            lock_skipped=False,
             error=None
         )
     except Exception as e:
@@ -88,8 +108,13 @@ def run_report(dry_run: bool = False):
             chart_path=chart,
             email_sent=False,
             email_skipped=False,
+            lock_skipped=False,
             error=str(e)
         )
+    finally:
+        # Release the lock in a finally block to ensure it's always released
+        if lock_fd is not None:
+            release_lock(LOCK_FILE_PATH)
 
 
 def main():
@@ -121,6 +146,8 @@ def main():
     if args.run_now:
         result = run_report(dry_run=args.dry_run)
         log_run_outcome(result, logger)
+        if result.lock_skipped:
+            sys.exit(3)
         sys.exit(0 if (result.email_sent or result.email_skipped) else (2 if result.pdf_generated else 1))
     elif args.schedule == "daily":
         def job():
@@ -155,6 +182,8 @@ def main():
     else:
         result = run_report(dry_run=args.dry_run)
         log_run_outcome(result, logger)
+        if result.lock_skipped:
+            sys.exit(3)
         sys.exit(0 if (result.email_sent or result.email_skipped) else (2 if result.pdf_generated else 1))
 
 
